@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -32,7 +34,23 @@ const formatLatency = (value: number) => {
   return `${Math.round(value)} ms`;
 };
 
-// Color palette for different profiles (up to 10 profiles)
+// Performance tier colors
+const getPerformanceColor = (rank: number, total: number) => {
+  if (rank === 1) return { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-400 dark:border-amber-500', text: 'text-amber-700 dark:text-amber-300', badge: 'bg-amber-500' };
+  if (rank === 2) return { bg: 'bg-slate-50 dark:bg-slate-700/30', border: 'border-slate-400 dark:border-slate-500', text: 'text-slate-700 dark:text-slate-300', badge: 'bg-slate-400' };
+  if (rank === 3) return { bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-400 dark:border-orange-500', text: 'text-orange-700 dark:text-orange-300', badge: 'bg-orange-600' };
+  if (total > 3 && rank === total) return { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-300 dark:border-red-500', text: 'text-red-700 dark:text-red-300', badge: 'bg-red-500' };
+  return { bg: 'bg-white dark:bg-slate-800', border: 'border-slate-200 dark:border-slate-700', text: 'text-slate-700 dark:text-slate-300', badge: 'bg-slate-500' };
+};
+
+const getRankBadge = (rank: number) => {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return `#${rank}`;
+};
+
+// Color palette for chart lines
 const PROFILE_COLORS = [
   '#10b981', // green
   '#6366f1', // indigo
@@ -226,27 +244,66 @@ const Dashboard = () => {
     );
   }
 
+  // Sort profiles by accuracy (best first) and assign ranks
+  const rankedProfiles = useMemo(() => {
+    return [...profilePerformanceData]
+      .sort((a, b) => b.averageAccuracy - a.averageAccuracy)
+      .map((profile, index) => ({
+        ...profile,
+        rank: index + 1,
+      }));
+  }, [profilePerformanceData]);
+
+  // Prepare data for comparison bar charts
+  const comparisonData = useMemo(() => {
+    return rankedProfiles.map((profile) => ({
+      name: profile.profileName.length > 15
+        ? profile.profileName.substring(0, 15) + '...'
+        : profile.profileName,
+      fullName: profile.profileName,
+      accuracy: profile.averageAccuracy * 100,
+      topologyAccuracy: profile.averageTopologyAccuracy * 100,
+      latency: profile.averageLatencyMs,
+    }));
+  }, [rankedProfiles]);
+
+  const selectedDatasetName = useMemo(() => {
+    if (selectedDatasetFilter === 'all') return 'All Datasets';
+    const dataset = datasets.find(d => d.id === selectedDatasetFilter);
+    return dataset?.name ?? 'Unknown Dataset';
+  }, [selectedDatasetFilter, datasets]);
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl sm:text-3xl lg:text-[2.2rem] font-bold tracking-tight text-slate-900 dark:text-slate-50">
-          Dashboard
+          Model Performance Dashboard
         </h1>
         <p className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
-          Track model profile performance and accuracy trends over time.
+          Compare model profiles and identify top performers on your datasets.
         </p>
       </header>
 
-      {/* Dataset filter */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 transition-theme">
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Filter by dataset
-          </span>
+      {/* Dataset Selector - Prominent */}
+      <section className="bg-gradient-to-br from-accent-50 to-accent-100 dark:from-accent-900/20 dark:to-accent-800/20 rounded-xl sm:rounded-2xl shadow-sm p-6 transition-theme border border-accent-200 dark:border-accent-700">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent-600 dark:bg-accent-500 flex items-center justify-center text-white font-bold text-lg">
+              📊
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                Select Dataset to Compare
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Choose a dataset to see how different model profiles perform
+              </p>
+            </div>
+          </div>
           <select
             value={selectedDatasetFilter}
             onChange={(event) => setSelectedDatasetFilter(event.target.value)}
-            className="appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl pl-3 pr-10 py-2.5 text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] dark:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%239ca3af%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem_1.5rem] bg-[right_0.5rem_center] bg-no-repeat max-w-xs"
+            className="appearance-none bg-white dark:bg-slate-900 border-2 border-accent-300 dark:border-accent-600 rounded-xl pl-4 pr-12 py-3.5 text-lg font-medium text-slate-900 dark:text-slate-50 focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-theme bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] dark:bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%239ca3af%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem_1.5rem] bg-[right_1rem_center] bg-no-repeat"
           >
             <option value="all">All Datasets</option>
             {datasets.map((dataset) => (
@@ -255,8 +312,8 @@ const Dashboard = () => {
               </option>
             ))}
           </select>
-        </label>
-      </div>
+        </div>
+      </section>
 
       {/* Active runs indicator */}
       {activeRuns > 0 && (
@@ -268,183 +325,292 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Profile performance charts */}
+      {/* Performance Leaderboard */}
       <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
         <header className="flex flex-col gap-2">
           <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Performance trends by profile
+            Performance Leaderboard
           </h2>
           <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
-            Compare how different model profiles perform over time on the same dataset.
+            Ranked by average accuracy on <span className="font-semibold">{selectedDatasetName}</span>
           </p>
         </header>
 
-        {/* Two charts: Answer Accuracy and Topology Accuracy */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Answer Accuracy Chart */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              Answer Accuracy
-            </h3>
-            <div className="w-full h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
-                  <XAxis dataKey="timestamp" tick={{ fill: '#52606d', fontSize: 11 }} />
-                  <YAxis
-                    tickFormatter={(value: number) => `${Math.round(value)}%`}
-                    tick={{ fill: '#52606d', fontSize: 11 }}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip
-                    formatter={(value: number | string) => {
-                      if (typeof value === 'number') {
-                        return `${value.toFixed(1)}%`;
-                      }
-                      return value;
-                    }}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  {profilePerformanceData.map((profile, index) => (
-                    <Line
-                      key={profile.profileId}
-                      type="monotone"
-                      dataKey={`${profile.profileId}_accuracy`}
-                      stroke={PROFILE_COLORS[index % PROFILE_COLORS.length]}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      name={profile.profileName}
-                      connectNulls
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 gap-4">
+          {rankedProfiles.map((profile) => {
+            const colors = getPerformanceColor(profile.rank, rankedProfiles.length);
+            return (
+              <article
+                key={profile.profileId}
+                className={`${colors.bg} border-2 ${colors.border} rounded-xl p-5 transition-all hover:shadow-lg`}
+              >
+                <div className="flex items-start gap-4">
+                  {/* Rank Badge */}
+                  <div className={`${colors.badge} text-white w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-md`}>
+                    {getRankBadge(profile.rank)}
+                  </div>
 
-          {/* Topology Accuracy Chart */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              Topology Accuracy
-            </h3>
-            <div className="w-full h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
-                  <XAxis dataKey="timestamp" tick={{ fill: '#52606d', fontSize: 11 }} />
-                  <YAxis
-                    tickFormatter={(value: number) => `${Math.round(value)}%`}
-                    tick={{ fill: '#52606d', fontSize: 11 }}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip
-                    formatter={(value: number | string) => {
-                      if (typeof value === 'number') {
-                        return `${value.toFixed(1)}%`;
-                      }
-                      return value;
-                    }}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  {profilePerformanceData.map((profile, index) => (
-                    <Line
-                      key={profile.profileId}
-                      type="monotone"
-                      dataKey={`${profile.profileId}_topologyAccuracy`}
-                      stroke={PROFILE_COLORS[index % PROFILE_COLORS.length]}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      name={profile.profileName}
-                      connectNulls
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+                  {/* Profile Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-bold ${colors.text} text-xl truncate`}>
+                          {profile.profileName}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                          {profile.profileModelId}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                          Total Runs
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+                          {profile.totalRuns}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white/60 dark:bg-slate-900/40 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                          Answer Accuracy
+                        </div>
+                        <div className={`text-3xl font-bold ${
+                          profile.averageAccuracy >= 0.8
+                            ? 'text-success-600 dark:text-success-400'
+                            : profile.averageAccuracy >= 0.6
+                            ? 'text-warning-600 dark:text-warning-400'
+                            : 'text-error-600 dark:text-error-400'
+                        }`}>
+                          {formatPercent(profile.averageAccuracy)}
+                        </div>
+                      </div>
+
+                      <div className="bg-white/60 dark:bg-slate-900/40 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                          Topology Accuracy
+                        </div>
+                        <div className={`text-3xl font-bold ${
+                          profile.averageTopologyAccuracy >= 0.8
+                            ? 'text-success-600 dark:text-success-400'
+                            : profile.averageTopologyAccuracy >= 0.6
+                            ? 'text-warning-600 dark:text-warning-400'
+                            : 'text-error-600 dark:text-error-400'
+                        }`}>
+                          {formatPercent(profile.averageTopologyAccuracy)}
+                        </div>
+                      </div>
+
+                      <div className="bg-white/60 dark:bg-slate-900/40 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
+                          Avg Latency
+                        </div>
+                        <div className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+                          {formatLatency(profile.averageLatencyMs)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {profile.lastRunAt && (
+                      <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          Last run: {formatDateTime(profile.lastRunAt)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
-      {/* Profile performance cards */}
-      <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
-        <header className="flex flex-col gap-2">
-          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Profile performance summary
-          </h2>
-          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
-            Average metrics across all completed runs for each profile.
-          </p>
-        </header>
+      {/* Comparison Bar Charts */}
+      {rankedProfiles.length > 1 && (
+        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
+          <header className="flex flex-col gap-2">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
+              Side-by-Side Comparison
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
+              Visual comparison of key metrics across all profiles
+            </p>
+          </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {profilePerformanceData.map((profile, index) => (
-            <article
-              key={profile.profileId}
-              className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <div
-                  className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
-                  style={{ backgroundColor: PROFILE_COLORS[index % PROFILE_COLORS.length] }}
-                ></div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-50 text-lg truncate">
-                    {profile.profileName}
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
-                    {profile.profileModelId}
-                  </p>
-                </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Accuracy Comparison */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                Answer Accuracy Comparison
+              </h3>
+              <div className="w-full h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={comparisonData} margin={{ top: 16, right: 24, left: 0, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      tick={{ fill: '#52606d', fontSize: 11 }}
+                    />
+                    <YAxis
+                      tickFormatter={(value: number) => `${Math.round(value)}%`}
+                      tick={{ fill: '#52606d', fontSize: 11 }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => `${value.toFixed(1)}%`}
+                      labelFormatter={(label, payload) => {
+                        const data = payload?.[0]?.payload;
+                        return data?.fullName ?? label;
+                      }}
+                    />
+                    <Bar dataKey="accuracy" fill="#10b981" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                    Runs
-                  </div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-50">
-                    {profile.totalRuns}
-                  </div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                    Answer
-                  </div>
-                  <div className="text-2xl font-bold text-success-700 dark:text-success-400">
-                    {formatPercent(profile.averageAccuracy)}
-                  </div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                    Topology
-                  </div>
-                  <div className="text-2xl font-bold text-warning-700 dark:text-warning-400">
-                    {formatPercent(profile.averageTopologyAccuracy)}
-                  </div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg p-3">
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">
-                    Latency
-                  </div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-slate-50">
-                    {formatLatency(profile.averageLatencyMs)}
-                  </div>
-                </div>
+            {/* Topology Accuracy Comparison */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                Topology Accuracy Comparison
+              </h3>
+              <div className="w-full h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={comparisonData} margin={{ top: 16, right: 24, left: 0, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      tick={{ fill: '#52606d', fontSize: 11 }}
+                    />
+                    <YAxis
+                      tickFormatter={(value: number) => `${Math.round(value)}%`}
+                      tick={{ fill: '#52606d', fontSize: 11 }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => `${value.toFixed(1)}%`}
+                      labelFormatter={(label, payload) => {
+                        const data = payload?.[0]?.payload;
+                        return data?.fullName ?? label;
+                      }}
+                    />
+                    <Bar dataKey="topologyAccuracy" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
+            </div>
+          </div>
+        </section>
+      )}
 
-              {profile.lastRunAt && (
-                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Last run: {formatDateTime(profile.lastRunAt)}
-                  </span>
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
+      {/* Performance Trends Over Time */}
+      {chartData.length > 1 && (
+        <section className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-5 lg:p-6 flex flex-col gap-4 sm:gap-5 lg:gap-6 transition-theme">
+          <header className="flex flex-col gap-2">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-slate-50">
+              Performance Trends Over Time
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-[0.95rem]">
+              Track how model profiles improve or change over time
+            </p>
+          </header>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Answer Accuracy Trend */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                Answer Accuracy Trend
+              </h3>
+              <div className="w-full h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
+                    <XAxis dataKey="timestamp" tick={{ fill: '#52606d', fontSize: 11 }} />
+                    <YAxis
+                      tickFormatter={(value: number) => `${Math.round(value)}%`}
+                      tick={{ fill: '#52606d', fontSize: 11 }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number | string) => {
+                        if (typeof value === 'number') {
+                          return `${value.toFixed(1)}%`;
+                        }
+                        return value;
+                      }}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    {profilePerformanceData.map((profile, index) => (
+                      <Line
+                        key={profile.profileId}
+                        type="monotone"
+                        dataKey={`${profile.profileId}_accuracy`}
+                        stroke={PROFILE_COLORS[index % PROFILE_COLORS.length]}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        name={profile.profileName}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Topology Accuracy Trend */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+                Topology Accuracy Trend
+              </h3>
+              <div className="w-full h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(15, 23, 42, 0.1)" />
+                    <XAxis dataKey="timestamp" tick={{ fill: '#52606d', fontSize: 11 }} />
+                    <YAxis
+                      tickFormatter={(value: number) => `${Math.round(value)}%`}
+                      tick={{ fill: '#52606d', fontSize: 11 }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number | string) => {
+                        if (typeof value === 'number') {
+                          return `${value.toFixed(1)}%`;
+                        }
+                        return value;
+                      }}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    {profilePerformanceData.map((profile, index) => (
+                      <Line
+                        key={profile.profileId}
+                        type="monotone"
+                        dataKey={`${profile.profileId}_topologyAccuracy`}
+                        stroke={PROFILE_COLORS[index % PROFILE_COLORS.length]}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        name={profile.profileName}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

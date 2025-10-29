@@ -6,6 +6,8 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
+  useState,
 } from 'react';
 import {
   ActiveRunAttemptPayload,
@@ -30,9 +32,11 @@ import {
   QuestionDatasetSummary,
   QuestionTopologySubject,
 } from '@/types/benchmark';
-import { questionDataset, questionDatasetSummary } from '@/data/questions';
+import { questionDataset, questionDatasetSummary, questionLookup } from '@/data/questions';
 import { questionTopology, questionTopologyGeneratedAt } from '@/data/topology';
 import { defaultBenchmarkSteps, createEmptyRunMetrics, createDefaultTextBinding } from '@/data/defaults';
+import { executeBenchmarkRun } from '@/services/benchmarkEngine';
+import { runDiagnostics } from '@/services/diagnostics';
 import {
   deleteDatasetRecord,
   deleteProfileRecord,
@@ -921,6 +925,10 @@ const BenchmarkContext = createContext<BenchmarkContextValue | undefined>(undefi
 export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  // Track runs that are currently executing to prevent duplicates
+  const [executingRunIds, setExecutingRunIds] = useState<Set<string>>(new Set());
+  const startingRunsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     let cancelled = false;
 
@@ -1325,6 +1333,338 @@ export const BenchmarkProvider = ({ children }: { children: ReactNode }) => {
       dispatch({ type: 'QUEUE_START_NEXT' });
     }
   }, [state.runs, state.runQueue.currentRunId, state.runQueue.queuedRunIds.length]);
+
+  // Auto-execute queued runs when they become current (app-wide, works on any page)
+  useEffect(() => {
+    const { currentRunId } = state.runQueue;
+    if (!currentRunId) {
+      return;
+    }
+
+    // Check if this run needs to be executed
+    const currentRun = state.runs.find(r => r.id === currentRunId);
+    if (!currentRun) {
+      return;
+    }
+
+    // Only execute if not already running/completed and not already being executed
+    if (currentRun.status !== 'draft' && currentRun.status !== 'queued') {
+      return;
+    }
+
+    // Prevent duplicate execution - check both state and ref
+    if (executingRunIds.has(currentRunId) || startingRunsRef.current.has(currentRunId)) {
+      console.log(`[QUEUE] ⏭️  Skipping run ${currentRunId} - already executing`);
+      return;
+    }
+
+    // Mark as starting (synchronous, prevents race condition)
+    startingRunsRef.current.add(currentRunId);
+
+    // Add to executing set
+    setExecutingRunIds((prev) => {
+      const next = new Set(prev);
+      next.add(currentRunId);
+      return next;
+    });
+
+    // Get the profile for this run
+    const profile = state.profiles.find(p => p.id === currentRun.profileId);
+    if (!profile) {
+      console.error(`Profile ${currentRun.profileId} not found for run ${currentRunId}`);
+      return;
+    }
+
+    // Check if this is a resumed run (has existing attempts)
+    const attemptedQuestionIds = new Set(currentRun.attempts.map((a) => a.questionId));
+    const isResuming = attemptedQuestionIds.size > 0;
+
+    // Filter to only unanswered questions if resuming
+    const questionsToProcess = isResuming
+      ? currentRun.questionIds.filter((id) => !attemptedQuestionIds.has(id))
+      : currentRun.questionIds;
+
+    const selectedQuestions = questionsToProcess
+      .map((id) => questionLookup.get(id))
+      .filter((question): question is BenchmarkQuestion => Boolean(question));
+
+    if (selectedQuestions.length === 0) {
+      console.log(`[Queue] No questions to process for run ${currentRunId} - marking as completed`);
+
+      // All questions already answered, mark as completed
+      const completedRun = normalizeRun({
+        ...currentRun,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        summary: 'All questions already answered',
+      }, currentRun);
+
+      dispatch({ type: 'UPSERT_RUN', payload: completedRun });
+      void upsertRunRecord(completedRun);
+
+      dispatch({
+        type: 'ACTIVE_RUN_COMPLETE',
+        payload: {
+          runId: completedRun.id,
+          status: 'completed',
+          summary: completedRun.summary ?? 'Run completed',
+          metrics: completedRun.metrics,
+          completedAt: completedRun.completedAt ?? new Date().toISOString(),
+        },
+      });
+
+      return;
+    }
+
+    const questionDescriptors = selectedQuestions.map((question, index) => {
+      const questionNumber = index + 1;
+      const label = question.questionId
+        ? `Question ${questionNumber} (ID: ${question.questionId})`
+        : `Question ${questionNumber}`;
+
+      return {
+        id: question.id,
+        order: index,
+        label,
+        prompt: question.prompt,
+        type: question.type,
+      };
+    });
+
+    // Update run status to running and set start time
+    const runningRun = normalizeRun({
+      ...currentRun,
+      status: 'running',
+      startedAt: new Date().toISOString(),
+    }, currentRun);
+
+    dispatch({ type: 'UPSERT_RUN', payload: runningRun });
+    void upsertRunRecord(runningRun);
+
+    dispatch({
+      type: 'ACTIVE_RUN_INITIALIZE',
+      payload: {
+        runId: runningRun.id,
+        label: runningRun.label,
+        profileName: runningRun.profileName,
+        profileModelId: runningRun.profileModelId,
+        datasetLabel: questionDatasetSummary.label,
+        filters: currentRun.dataset.filters,
+        questions: questionDescriptors,
+        startedAt: runningRun.startedAt ?? new Date().toISOString(),
+      },
+    });
+
+    // Preserve existing attempts if resuming
+    const attempts: BenchmarkRun['attempts'] = isResuming ? [...currentRun.attempts] : [];
+    let latestRun = runningRun;
+
+    const runTask = async () => {
+      try {
+        // Run diagnostics before benchmark execution (validates model is still available and working)
+        const handshakeResult = await runDiagnostics({ profile, level: 'HANDSHAKE' });
+        const handshakeHistory = [
+          ...profile.diagnostics.filter((item) => item.id !== handshakeResult.id),
+          handshakeResult,
+        ].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+
+        const handshakeMetadata = { ...profile.metadata };
+        if (handshakeResult.status === 'pass') {
+          handshakeMetadata.lastHandshakeAt = handshakeResult.completedAt;
+        }
+        if (typeof handshakeResult.metadata?.supportsJsonMode === 'boolean') {
+          handshakeMetadata.supportsJsonMode = handshakeResult.metadata.supportsJsonMode;
+        }
+
+        const updatedProfile: ModelProfile = {
+          ...profile,
+          diagnostics: handshakeHistory,
+          metadata: handshakeMetadata,
+          updatedAt: handshakeResult.completedAt ?? profile.updatedAt,
+        };
+
+        dispatch({ type: 'UPSERT_PROFILE', payload: updatedProfile });
+        void upsertProfileRecord(updatedProfile);
+
+        if (handshakeResult.status === 'fail') {
+          const errorMessage = `Diagnostics failed (HANDSHAKE): ${handshakeResult.summary}`;
+          console.error(`[DIAGNOSTICS] ${errorMessage}`);
+
+          // Mark run as failed
+          latestRun = normalizeRun({
+            ...latestRun,
+            status: 'failed',
+            completedAt: new Date().toISOString(),
+            summary: errorMessage,
+          }, latestRun);
+
+          dispatch({ type: 'UPSERT_RUN', payload: latestRun });
+          void upsertRunRecord(latestRun);
+
+          dispatch({
+            type: 'ACTIVE_RUN_COMPLETE',
+            payload: {
+              runId: latestRun.id,
+              status: 'failed',
+              summary: errorMessage,
+              metrics: latestRun.metrics,
+              completedAt: latestRun.completedAt ?? new Date().toISOString(),
+              error: errorMessage,
+            },
+          });
+          return; // Skip this run
+        }
+
+        // Run READINESS diagnostics
+        const readinessResult = await runDiagnostics({ profile, level: 'READINESS' });
+        const readinessHistory = [
+          ...updatedProfile.diagnostics.filter((item) => item.id !== readinessResult.id),
+          readinessResult,
+        ].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+
+        const readinessMetadata = { ...handshakeMetadata };
+        if (readinessResult.status === 'pass') {
+          readinessMetadata.lastReadinessAt = readinessResult.completedAt;
+        }
+
+        const updatedProfile2: ModelProfile = {
+          ...updatedProfile,
+          diagnostics: readinessHistory,
+          metadata: readinessMetadata,
+          updatedAt: readinessResult.completedAt ?? updatedProfile.updatedAt,
+        };
+
+        dispatch({ type: 'UPSERT_PROFILE', payload: updatedProfile2 });
+        void upsertProfileRecord(updatedProfile2);
+
+        if (readinessResult.status === 'fail') {
+          const errorMessage = `Diagnostics failed (READINESS): ${readinessResult.summary}`;
+          console.error(`[DIAGNOSTICS] ${errorMessage}`);
+
+          // Mark run as failed
+          latestRun = normalizeRun({
+            ...latestRun,
+            status: 'failed',
+            completedAt: new Date().toISOString(),
+            summary: errorMessage,
+          }, latestRun);
+
+          dispatch({ type: 'UPSERT_RUN', payload: latestRun });
+          void upsertRunRecord(latestRun);
+
+          dispatch({
+            type: 'ACTIVE_RUN_COMPLETE',
+            payload: {
+              runId: latestRun.id,
+              status: 'failed',
+              summary: errorMessage,
+              metrics: latestRun.metrics,
+              completedAt: latestRun.completedAt ?? new Date().toISOString(),
+              error: errorMessage,
+            },
+          });
+          return; // Skip this run
+        }
+
+        // Proceed with benchmark execution
+        const completedRun = await executeBenchmarkRun({
+          profile,
+          questions: selectedQuestions,
+          run: runningRun,
+          onQuestionStart: (question) => {
+            dispatch({
+              type: 'ACTIVE_RUN_SET_CURRENT',
+              payload: {
+                runId: runningRun.id,
+                questionId: question.id,
+                timestamp: new Date().toISOString(),
+              },
+            });
+          },
+          onProgress: (attempt, _progress, metrics) => {
+            attempts.push(attempt);
+            dispatch({
+              type: 'ACTIVE_RUN_RECORD_ATTEMPT',
+              payload: {
+                runId: runningRun.id,
+                questionId: attempt.questionId,
+                attemptId: attempt.id,
+                passed: attempt.evaluation.passed,
+                latencyMs: attempt.latencyMs,
+                notes: attempt.error ?? attempt.evaluation.notes,
+                metrics,
+                timestamp: new Date().toISOString(),
+              },
+            });
+            latestRun = normalizeRun({
+              ...latestRun,
+              status: 'running',
+              attempts: [...attempts],
+              metrics,
+            }, latestRun);
+
+            dispatch({ type: 'UPSERT_RUN', payload: latestRun });
+            void upsertRunRecord(latestRun);
+          },
+        });
+
+        latestRun = normalizeRun(completedRun, latestRun);
+        dispatch({ type: 'UPSERT_RUN', payload: latestRun });
+        void upsertRunRecord(latestRun);
+
+        dispatch({
+          type: 'ACTIVE_RUN_COMPLETE',
+          payload: {
+            runId: completedRun.id,
+            status: 'completed',
+            summary: completedRun.summary ?? 'Run completed',
+            metrics: completedRun.metrics,
+            completedAt: completedRun.completedAt ?? new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        const errorMessage = (error as Error).message;
+        latestRun = normalizeRun({
+          ...latestRun,
+          status: 'failed',
+          completedAt: new Date().toISOString(),
+          summary: `Run failed: ${errorMessage}`,
+        }, latestRun);
+
+        dispatch({ type: 'UPSERT_RUN', payload: latestRun });
+        void upsertRunRecord(latestRun);
+
+        dispatch({
+          type: 'ACTIVE_RUN_COMPLETE',
+          payload: {
+            runId: latestRun.id,
+            status: 'failed',
+            summary: latestRun.summary ?? 'Run failed',
+            metrics: latestRun.metrics,
+            completedAt: latestRun.completedAt ?? new Date().toISOString(),
+            error: errorMessage,
+          },
+        });
+        console.error('Benchmark run failed', error);
+      } finally {
+        // Remove from both tracking structures when done
+        console.log(`[Queue] Cleaning up run ${currentRunId}`);
+        startingRunsRef.current.delete(currentRunId);
+        setExecutingRunIds((prev) => {
+          const next = new Set(prev);
+          next.delete(currentRunId);
+          return next;
+        });
+      }
+    };
+
+    void runTask();
+  }, [
+    state.runQueue.currentRunId,
+    state.runs,
+    state.profiles,
+    executingRunIds,
+  ]);
 
   const overview = useMemo(() => computeDashboardOverview(state.runs), [state.runs]);
 
