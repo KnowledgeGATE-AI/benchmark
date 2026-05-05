@@ -13,7 +13,7 @@ import {
 } from '@/data/defaults';
 import createId from '@/utils/createId';
 
-export type LegacyProfileFields = {
+export interface LegacyProfileFields {
   provider?: string;
   baseUrl?: string;
   apiKey?: string;
@@ -25,7 +25,7 @@ export type LegacyProfileFields = {
   frequencyPenalty?: number;
   presencePenalty?: number;
   defaultSystemPrompt?: string;
-};
+}
 
 const coalesce = <T>(...values: (T | undefined)[]): T | undefined => {
   for (const value of values) {
@@ -127,6 +127,22 @@ export const extractLegacyFields = (
   );
 
   return legacy;
+};
+
+export const inferProviderFromBinding = (binding?: ModelBinding): string | undefined => {
+  if (!binding) {
+    return undefined;
+  }
+
+  switch (binding.transport) {
+    case 'openrouter':
+      return 'OpenRouter';
+    case 'openai-compatible':
+      return 'OpenAI-compatible';
+    case 'lmstudio':
+    default:
+      return 'LM Studio';
+  }
 };
 
 const cloneBindingWithDefaults = (
@@ -277,7 +293,7 @@ export const deriveLegacyFromBindings = (
 ): LegacyProfileFields => {
   const textBinding = bindings.find((binding) => binding.capability === 'text-to-text');
   const legacy: LegacyProfileFields = {
-    provider: fallback?.provider,
+    provider: fallback?.provider ?? inferProviderFromBinding(textBinding),
     baseUrl: textBinding?.baseUrl ?? fallback?.baseUrl,
     apiKey: textBinding?.apiKey ?? fallback?.apiKey,
     modelId: textBinding?.modelId ?? fallback?.modelId,

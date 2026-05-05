@@ -72,6 +72,8 @@ const formatTimestamp = (iso?: string) => {
   })}`;
 };
 
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
 const Profiles = () => {
   const {
     loading,
@@ -93,8 +95,8 @@ const Profiles = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [isProfileDetailOpen, setProfileDetailOpen] = useState(false);
   const [runningCompatibilityCheck, setRunningCompatibilityCheck] = useState<string | null>(null);
-  const [loadingModels, setLoadingModels] = useState<{ [bindingId: string]: boolean }>({});
-  const [availableModels, setAvailableModels] = useState<{ [bindingId: string]: { id: string; object: string }[] }>({});
+  const [loadingModels, setLoadingModels] = useState<Record<string, boolean>>({});
+  const [availableModels, setAvailableModels] = useState<Record<string, { id: string; object: string }[]>>({});
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedProfileId),
@@ -280,10 +282,10 @@ const Profiles = () => {
       if (/got|ocr/.test(identity)) {
         recommendedVisionPrompt =
           'You are GOT-OCR 2.0. Transcribe every legible character from the image. Return plain text preserving line breaks.';
-      } else if (/qwen/.test(identity)) {
+      } else if (identity.includes('qwen')) {
         recommendedVisionPrompt =
           'You are Qwen2.5-VL. Read the image and output only the detected text with newline separators. Do not describe visuals.';
-      } else if (/gemma/.test(identity)) {
+      } else if (identity.includes('gemma')) {
         recommendedVisionPrompt =
           'You are Gemma3 Vision. Provide a faithful transcription of any printed or handwritten text in the image.';
       }
@@ -362,7 +364,7 @@ const Profiles = () => {
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
       >
     ) => {
-      const numericFields: Array<keyof ModelBinding> = [
+      const numericFields: (keyof ModelBinding)[] = [
         'temperature',
         'maxOutputTokens',
         'requestTimeoutMs',
@@ -375,14 +377,56 @@ const Profiles = () => {
 
       setFormState((prev) => ({
         ...prev,
-        bindings: prev.bindings.map((binding) =>
-          binding.id === bindingId
-            ? {
-                ...binding,
-                [field]: nextValue as ModelBinding[typeof field],
+        bindings: prev.bindings.map((binding) => {
+          if (binding.id !== bindingId) {
+            return binding;
+          }
+
+          let updatedBinding: ModelBinding = {
+            ...binding,
+            [field]: nextValue as ModelBinding[typeof field],
+          };
+
+          if (field === 'transport' && typeof nextValue === 'string') {
+            const nextTransport = nextValue as ModelBinding['transport'];
+
+            if (nextTransport === 'openrouter') {
+              const needsBaseUrlUpdate =
+                !binding.baseUrl ||
+                binding.baseUrl === '' ||
+                binding.baseUrl.startsWith('http://localhost');
+
+              if (needsBaseUrlUpdate) {
+                updatedBinding = {
+                  ...updatedBinding,
+                  baseUrl: OPENROUTER_BASE_URL,
+                };
               }
-            : binding
-        ),
+
+              updatedBinding = {
+                ...updatedBinding,
+                metadata: {
+                  ...(updatedBinding.metadata ?? {}),
+                  supportsJsonMode: true,
+                },
+              };
+            } else if (nextTransport === 'lmstudio') {
+              const needsLmStudioDefault =
+                !binding.baseUrl ||
+                binding.baseUrl === '' ||
+                binding.baseUrl === OPENROUTER_BASE_URL;
+
+              if (needsLmStudioDefault) {
+                updatedBinding = {
+                  ...updatedBinding,
+                  baseUrl: 'http://localhost:1234',
+                };
+              }
+            }
+          }
+
+          return updatedBinding;
+        }),
       }));
     };
 
@@ -408,7 +452,7 @@ const Profiles = () => {
 
   const handleLoadModels = async (bindingId: string) => {
     const binding = formState.bindings.find((b) => b.id === bindingId);
-    if (!binding || !binding.baseUrl) {
+    if (!binding?.baseUrl) {
       alert('Please enter a Base URL first');
       return;
     }
@@ -419,6 +463,7 @@ const Profiles = () => {
         baseUrl: binding.baseUrl,
         apiKey: binding.apiKey,
         requestTimeoutMs: binding.requestTimeoutMs,
+        transport: binding.transport,
       });
       setAvailableModels((prev) => ({ ...prev, [bindingId]: models }));
     } catch (error) {
@@ -1549,14 +1594,15 @@ const Profiles = () => {
                     >
                       <option value="lmstudio">LM Studio</option>
                       <option value="openai-compatible">OpenAI-compatible</option>
+                      <option value="openrouter">OpenRouter</option>
                     </select>
                   </label>
                 </div>
-                {visionBinding.transport === 'lmstudio' && (
+                {(visionBinding.transport === 'lmstudio' || visionBinding.transport === 'openrouter') && (
                   <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Select model from LM Studio
+                        Select model from server
                       </span>
                       <button
                         type="button"
@@ -1581,9 +1627,9 @@ const Profiles = () => {
                         ))}
                       </select>
                     )}
-                    {availableModels[visionBinding.id] && availableModels[visionBinding.id].length === 0 && (
+                    {availableModels[visionBinding.id]?.length === 0 && (
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        No models found. Make sure LM Studio is running and has models loaded.
+                        No models found. Ensure the server is reachable and exposes the /v1/models endpoint.
                       </p>
                     )}
                   </div>
@@ -1744,14 +1790,15 @@ const Profiles = () => {
                     >
                       <option value="lmstudio">LM Studio</option>
                       <option value="openai-compatible">OpenAI-compatible</option>
+                      <option value="openrouter">OpenRouter</option>
                     </select>
                   </label>
                 </div>
-                {textBinding.transport === 'lmstudio' && (
+                {(textBinding.transport === 'lmstudio' || textBinding.transport === 'openrouter') && (
                   <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Select model from LM Studio
+                        Select model from server
                       </span>
                       <button
                         type="button"
@@ -1776,7 +1823,7 @@ const Profiles = () => {
                         ))}
                       </select>
                     )}
-                    {availableModels[textBinding.id] && availableModels[textBinding.id].length === 0 && (
+                    {availableModels[textBinding.id]?.length === 0 && (
                       <p className="text-sm text-slate-600 dark:text-slate-400">
                         No models found. Make sure LM Studio is running and has models loaded.
                       </p>

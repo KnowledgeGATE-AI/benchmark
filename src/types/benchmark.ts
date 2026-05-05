@@ -191,7 +191,7 @@ export interface BenchmarkStepConfig {
 
 export type ModelBindingCapability = 'image-to-text' | 'text-to-text';
 
-export type ModelBindingTransport = 'lmstudio' | 'openai-compatible';
+export type ModelBindingTransport = 'lmstudio' | 'openai-compatible' | 'openrouter';
 
 export interface ModelBinding {
   id: string;
@@ -451,6 +451,7 @@ export interface BenchmarkRun {
   completedAt?: string;
   durationMs?: number;
   datasetId: string;
+  questionIds: string[];
   dataset: {
     id: string;
     name: string;

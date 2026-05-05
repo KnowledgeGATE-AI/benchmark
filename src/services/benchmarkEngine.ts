@@ -503,7 +503,7 @@ export const executeBenchmarkRun = async ({
 
     const attemptSteps: BenchmarkAttemptStepResult[] = [];
     const attemptStartedAtMs = Date.now();
-    let topologyPrediction: BenchmarkTopologyPrediction = { raw: {}, stages: {} };
+    const topologyPrediction: BenchmarkTopologyPrediction = { raw: {}, stages: {} };
     let finalResponseText = '';
     let finalResponsePayload: unknown;
     let finalModelResponse: BenchmarkModelResponse | undefined;
@@ -806,12 +806,13 @@ export const executeBenchmarkRun = async ({
           topologyEvaluation = topologyEval;
 
           // Create evaluation for subtopic step (just subtopic, not full topology)
-          const expectedSubtopicId = question.metadata?.topology?.subtopicId;
-          const expectedSubject = question.metadata?.topology?.subjectId
-            ? questionTopology.find((s) => s.id === question.metadata.topology.subjectId)
+          const expectedTopology = question.metadata?.topology;
+          const expectedSubtopicId = expectedTopology?.subtopicId;
+          const expectedSubject = expectedTopology?.subjectId
+            ? questionTopology.find((s) => s.id === expectedTopology.subjectId)
             : undefined;
-          const expectedTopic = question.metadata?.topology?.topicId
-            ? expectedSubject?.topics.find((t) => t.id === question.metadata.topology.topicId)
+          const expectedTopic = expectedTopology?.topicId
+            ? expectedSubject?.topics.find((t) => t.id === expectedTopology.topicId)
             : undefined;
           const expectedSubtopic = expectedSubtopicId
             ? expectedTopic?.subtopics.find((st) => st.id === expectedSubtopicId)

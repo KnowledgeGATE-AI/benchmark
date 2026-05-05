@@ -55,6 +55,7 @@ import {
   normalizePipeline as normalizeProfilePipeline,
   extractLegacyFields,
   deriveLegacyFromBindings,
+  inferProviderFromBinding,
   LegacyProfileFields,
 } from '@/utils/profile';
 
@@ -275,7 +276,7 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
 
       const insertion = [subjectStep, topicStep, subtopicStep]
         .filter(Boolean)
-        .map((step) => step as BenchmarkStepConfig);
+        .map((step) => step!);
 
       const answerIndex = withoutTopology.findIndex((step) => step.id === 'answer');
       normalized =
@@ -323,6 +324,12 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
   };
 
   const legacySnapshot = deriveLegacyFromBindings(bindings, legacyFields);
+  const provider =
+    legacyFields.provider ??
+    existing?.provider ??
+    legacySnapshot.provider ??
+    inferProviderFromBinding(textBinding) ??
+    'LM Studio';
 
   return {
     id: profile.id ?? existing?.id ?? createId(),
@@ -334,7 +341,7 @@ const normalizeProfile = (profile: Partial<ModelProfile>, existing?: ModelProfil
     createdAt: existing?.createdAt ?? profile.createdAt ?? now,
     updatedAt: profile.updatedAt ?? now,
     notes: profile.notes ?? existing?.notes,
-    provider: legacyFields.provider ?? existing?.provider ?? legacySnapshot.provider ?? 'LM Studio',
+    provider,
     baseUrl: textBinding?.baseUrl ?? legacySnapshot.baseUrl,
     apiKey: textBinding?.apiKey ?? legacySnapshot.apiKey,
     modelId: textBinding?.modelId ?? legacySnapshot.modelId,
@@ -379,6 +386,8 @@ const normalizeDataset = (dataset: Partial<BenchmarkDataset>, existing?: Benchma
 const normalizeRun = (run: Partial<BenchmarkRun>, existing?: BenchmarkRun): BenchmarkRun => {
   const now = new Date().toISOString();
   const baseDataset = existing?.dataset ?? {
+    id: run.datasetId ?? existing?.datasetId ?? '',
+    name: questionDatasetSummary.label,
     label: questionDatasetSummary.label,
     totalQuestions: questionDatasetSummary.total,
     filters: questionDatasetSummary.filters,
@@ -413,8 +422,11 @@ const normalizeRun = (run: Partial<BenchmarkRun>, existing?: BenchmarkRun): Benc
     startedAt: run.startedAt ?? existing?.startedAt,
     completedAt: run.completedAt ?? existing?.completedAt,
     durationMs: run.durationMs ?? existing?.durationMs,
+    datasetId: run.datasetId ?? existing?.datasetId ?? '',
     questionIds: run.questionIds ?? existing?.questionIds ?? [],
     dataset: {
+      id: run.dataset?.id ?? baseDataset.id,
+      name: run.dataset?.name ?? baseDataset.name,
       label: run.dataset?.label ?? baseDataset.label,
       totalQuestions: run.dataset?.totalQuestions ?? baseDataset.totalQuestions,
       filters: run.dataset?.filters ?? baseDataset.filters,

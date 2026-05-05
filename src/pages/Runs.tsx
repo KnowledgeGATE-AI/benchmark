@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ActiveRunPhase,
@@ -10,8 +10,6 @@ import {
 import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import { questionLookup } from '@/data/questions';
 import { createEmptyRunMetrics } from '@/data/defaults';
-import { executeBenchmarkRun } from '@/services/benchmarkEngine';
-import { runDiagnostics } from '@/services/diagnostics';
 import Modal from '@/components/Modal';
 
 const statusLabels: Record<RunStatus, string> = {
@@ -142,7 +140,7 @@ interface NewRunPanelProps {
 }
 
 const NewRunPanel = ({ isOpen, onClose, onLaunch, initialDatasetId, initialLabel }: NewRunPanelProps) => {
-  const { profiles, datasets, questions } = useBenchmarkContext();
+  const { profiles, datasets } = useBenchmarkContext();
 
   // Filter to only show compatibility-passed profiles
   const compatibleProfiles = useMemo(
@@ -164,20 +162,10 @@ const NewRunPanel = ({ isOpen, onClose, onLaunch, initialDatasetId, initialLabel
   );
   const [launching, setLaunching] = useState(false);
 
-  // Get selected dataset and its questions
   const selectedDataset = useMemo(
     () => datasets.find((dataset) => dataset.id === selectedDatasetId),
     [datasets, selectedDatasetId]
   );
-
-  const datasetQuestions = useMemo(() => {
-    if (!selectedDataset) {
-      return [];
-    }
-    return selectedDataset.questionIds
-      .map((id) => questionLookup.get(id))
-      .filter((question): question is BenchmarkQuestion => Boolean(question));
-  }, [selectedDataset]);
 
   const requiresVision = selectedDataset?.metadata.hasImages ?? false;
   const supportedProfiles = useMemo(() => {
@@ -536,22 +524,16 @@ const Runs = () => {
     runs,
     profiles,
     datasets,
-    questionSummary,
     upsertRun,
     deleteRun,
     getProfileById,
     getRunById,
     activeRun,
-    beginActiveRun,
-    setActiveRunCurrentQuestion,
-    recordActiveRunAttempt,
-    finalizeActiveRun,
     clearActiveRun,
     enqueueRun,
     enqueueBatch,
     runQueue,
     getQueuePosition,
-    recordDiagnostic,
   } = useBenchmarkContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -559,14 +541,10 @@ const Runs = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [providerFilter, setProviderFilter] = useState<string>('all');
   const [showNewRunPanel, setShowNewRunPanel] = useState(false);
-  const [executingRunIds, setExecutingRunIds] = useState<Set<string>>(new Set());
   const [rerunData, setRerunData] = useState<{
     datasetId: string;
     label: string;
   } | null>(null);
-
-  // Ref to prevent race conditions in useEffect
-  const startingRunsRef = useRef<Set<string>>(new Set());
 
   // Check for rerun state from navigation
   useEffect(() => {

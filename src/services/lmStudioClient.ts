@@ -4,11 +4,17 @@ interface RequestOptions {
   path: string;
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
-  binding: Pick<ModelBinding, 'baseUrl' | 'apiKey' | 'requestTimeoutMs'>;
+  binding: Pick<ModelBinding, 'baseUrl' | 'apiKey' | 'requestTimeoutMs' | 'transport'>;
   signal?: AbortSignal;
 }
 
-// JSON Schemas for LM Studio's json_schema format
+const OPENROUTER_SITE_URL =
+  import.meta.env.VITE_OPENROUTER_SITE_URL ??
+  (typeof window !== 'undefined' ? window.location.origin : '');
+const OPENROUTER_APP_TITLE =
+  import.meta.env.VITE_OPENROUTER_APP_TITLE ?? 'KG AI Benchmark';
+
+// JSON Schemas for structured JSON responses
 const TOPOLOGY_SUBJECT_SCHEMA = {
   type: 'object',
   properties: {
@@ -70,13 +76,22 @@ const isJsonModeError = (payload: unknown): { isError: boolean; needsSchema: boo
   };
 };
 
-const buildHeaders = (apiKey?: string) => {
-  const headers: HeadersInit = {
+const buildHeaders = (binding: Pick<ModelBinding, 'apiKey' | 'transport'>) => {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (apiKey) {
-    headers.Authorization = `Bearer ${apiKey}`;
+  if (binding.apiKey) {
+    headers.Authorization = `Bearer ${binding.apiKey}`;
+  }
+
+  if (binding.transport === 'openrouter') {
+    if (OPENROUTER_SITE_URL) {
+      headers['HTTP-Referer'] = OPENROUTER_SITE_URL;
+    }
+    if (OPENROUTER_APP_TITLE) {
+      headers['X-Title'] = OPENROUTER_APP_TITLE;
+    }
   }
 
   return headers;
@@ -95,7 +110,7 @@ const request = async <T>({
 
   const response = await fetch(url, {
     method,
-    headers: buildHeaders(binding.apiKey),
+    headers: buildHeaders(binding),
     body: body ? JSON.stringify(body) : undefined,
     signal: signal ?? controller.signal,
   }).finally(() => {
@@ -122,6 +137,15 @@ export type MessageContentPart =
   | { type: 'input_text'; text: string }
   | {
       type: 'input_image';
+      image_url: {
+        url: string;
+      };
+    };
+
+type OpenAICompatibleMessageContent =
+  | { type: 'text'; text: string }
+  | {
+      type: 'image_url';
       image_url: {
         url: string;
       };
@@ -198,6 +222,46 @@ const mapUsage = (usage?: RawChatCompletionUsage) =>
       }
     : undefined;
 
+const prepareMessagesForTransport = (
+  messages: ChatCompletionMessage[],
+  transport: ModelBinding['transport']
+): unknown => {
+  if (transport === 'lmstudio') {
+    return messages;
+  }
+
+  return messages.map((message) => {
+    if (typeof message.content === 'string') {
+      return message;
+    }
+
+    if (!Array.isArray(message.content)) {
+      return message;
+    }
+
+    const content: OpenAICompatibleMessageContent[] = message.content.map((part) => {
+      if (part.type === 'input_text') {
+        return {
+          type: 'text',
+          text: part.text,
+        };
+      }
+
+      return {
+        type: 'image_url',
+        image_url: {
+          url: part.image_url.url,
+        },
+      };
+    });
+
+    return {
+      role: message.role,
+      content,
+    };
+  });
+};
+
 export const sendChatCompletion = async ({
   binding,
   messages,
@@ -211,6 +275,7 @@ export const sendChatCompletion = async ({
   signal,
 }: ChatCompletionParams): Promise<ChatCompletionResult> => {
   const activeBinding = binding;
+  const outboundMessages = prepareMessagesForTransport(messages, activeBinding.transport);
 
   const effectiveTemperature = temperature ?? activeBinding.temperature;
   const effectiveMaxTokens = maxTokens ?? activeBinding.maxOutputTokens;
@@ -235,7 +300,7 @@ export const sendChatCompletion = async ({
   };
 
   // Helper to build request payload for different JSON formats
-const buildPayload = (jsonFormat: JsonFormatType | null) => {
+  const buildPayload = (jsonFormat: JsonFormatType | null) => {
     let responseFormat = {};
 
     if (prefersJson && jsonFormat) {
@@ -260,7 +325,7 @@ const buildPayload = (jsonFormat: JsonFormatType | null) => {
       model: activeBinding.modelId,
       temperature: effectiveTemperature,
       max_tokens: effectiveMaxTokens,
-      messages,
+      messages: outboundMessages,
       ...(effectiveTopP !== undefined && { top_p: effectiveTopP }),
       ...(effectiveFrequencyPenalty !== undefined && {
         frequency_penalty: effectiveFrequencyPenalty,
@@ -345,6 +410,9 @@ const buildPayload = (jsonFormat: JsonFormatType | null) => {
     /json mode|response[_-]?format/i.test(errorMessage);
   const isModelLoadError = result.status === 404 ||
     /model.*not.*found|failed to load model|insufficient.*resources/i.test(errorMessage);
+  const jsonCompatibilitySummary = isActualJsonError
+    ? 'JSON mode compatibility failure'
+    : 'Non-JSON compatibility failure';
 
   // Log appropriate error based on type
   if (isModelLoadError) {
@@ -353,6 +421,10 @@ const buildPayload = (jsonFormat: JsonFormatType | null) => {
       error: errorMessage,
     });
   } else {
+    console.warn(`[${jsonCompatibilitySummary}]`, {
+      status: result.status,
+      error: errorMessage,
+    });
     console.error('[JSON MODE ERROR]', {
       status: result.status,
       schemaType,
@@ -376,7 +448,7 @@ const buildPayload = (jsonFormat: JsonFormatType | null) => {
 };
 
 export const fetchModels = async (
-  binding: Pick<ModelBinding, 'baseUrl' | 'apiKey' | 'requestTimeoutMs'>
+  binding: Pick<ModelBinding, 'baseUrl' | 'apiKey' | 'requestTimeoutMs' | 'transport'>
 ) => {
   const response = await request<{ data?: { id: string; object: string }[] }>({
     path: '/v1/models',

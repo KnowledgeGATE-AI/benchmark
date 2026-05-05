@@ -8,7 +8,6 @@ import {
 } from '@/types/benchmark';
 import { useBenchmarkContext } from '@/context/BenchmarkContext';
 import { questionLookup } from '@/data/questions';
-import { formatTopologyIds } from '@/utils/topologyLookup';
 import JsonView from 'react18-json-view';
 import 'react18-json-view/src/style.css';
 
@@ -135,7 +134,6 @@ const JsonOrText = ({ text, className = '' }: { text: string; className?: string
           theme={isDarkMode ? 'a11y' : 'default'}
           dark={isDarkMode}
           collapsed={1}
-          displayDataTypes={false}
           displaySize={false}
           enableClipboard={false}
           style={{
@@ -365,13 +363,6 @@ const selectedDefinition = useMemo(() => {
 }, [selectedItem]);
 
   const selectedImageSummaries = selectedItem?.attempt?.imageSummaries ?? [];
-  const attemptRequestMetadata = (selectedItem?.attempt?.requestPayload ?? null) as
-    | (Record<string, unknown> & {
-        bindingId?: string;
-        bindingName?: string;
-        baseUrl?: string;
-      })
-    | null;
 
   if (loading) {
     return (
@@ -492,7 +483,7 @@ const selectedDefinition = useMemo(() => {
             </div>
             <div className="text-slate-600 dark:text-slate-400 text-[0.95rem]">
               <div className="font-semibold mb-1">Profile: {run.profileName}</div>
-              {profile && profile.bindings && profile.bindings.length > 0 ? (
+              {profile?.bindings && profile.bindings.length > 0 ? (
                 <div className="flex flex-col gap-1 text-sm">
                   {profile.bindings.map((binding) => (
                     <div key={binding.id} className="flex items-center gap-2">

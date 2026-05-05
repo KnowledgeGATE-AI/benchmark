@@ -1,0 +1,4 @@
+self-hosted-runner:
+  labels:
+    - kgworker
+    - docker-amd64

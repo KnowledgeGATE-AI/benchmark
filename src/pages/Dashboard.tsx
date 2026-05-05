@@ -73,16 +73,16 @@ interface ProfilePerformance {
   averageTopologyAccuracy: number;
   averageLatencyMs: number;
   lastRunAt?: string;
-  trend: Array<{
+  trend: {
     timestamp: string;
     accuracy: number;
     topologyAccuracy: number;
     latencyMs: number;
-  }>;
+  }[];
 }
 
 const Dashboard = () => {
-  const { loading, runs, profiles, datasets } = useBenchmarkContext();
+  const { loading, runs, datasets } = useBenchmarkContext();
   const [selectedDatasetFilter, setSelectedDatasetFilter] = useState<string>('all');
 
   const profilePerformanceData = useMemo(() => {
@@ -175,7 +175,7 @@ const Dashboard = () => {
         fullTimestamp: timestamp,
       };
 
-      profilePerformanceData.forEach((profile, index) => {
+      profilePerformanceData.forEach((profile) => {
         const point = profile.trend.find(p => p.timestamp === timestamp);
         if (point) {
           dataPoint[`${profile.profileId}_accuracy`] = point.accuracy;

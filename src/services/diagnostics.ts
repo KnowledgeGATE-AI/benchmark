@@ -15,7 +15,7 @@ import {
   parseTopologySubtopicPrediction,
 } from '@/services/evaluation';
 import { questionTopology } from '@/data/topology';
-import { ensureTextBinding } from '@/utils/profile';
+import { ensureTextBinding, inferProviderFromBinding } from '@/utils/profile';
 
 /**
  * Dummy question used exclusively for L2 readiness checks.
@@ -228,13 +228,15 @@ interface HandshakeOutcome {
 const performHandshake = async (binding: ModelBinding): Promise<HandshakeOutcome> => {
   const logs: DiagnosticsLogEntry[] = [];
   logs.push(createLog('Starting Level 1 handshake diagnostic.'));
+  const providerLabel = inferProviderFromBinding(binding) ?? 'model host';
 
   try {
-    logs.push(createLog('Fetching model list from LM Studio server...'));
+    logs.push(createLog(`Fetching model list from ${providerLabel}...`));
     const models = await fetchModels({
       baseUrl: binding.baseUrl,
       apiKey: binding.apiKey,
       requestTimeoutMs: binding.requestTimeoutMs,
+      transport: binding.transport,
     });
     const modelIds = models.map((model) => model.id).join(', ') || 'no models reported';
     logs.push(createLog(`Received models: ${modelIds}`));

@@ -282,6 +282,7 @@ export const runCompatibilityCheck = async (
       baseUrl: textBinding.baseUrl,
       apiKey: textBinding.apiKey,
       requestTimeoutMs: textBinding.requestTimeoutMs,
+      transport: textBinding.transport,
     });
     const modelIds = models.map((m) => m.id).join(', ') || 'no models reported';
 

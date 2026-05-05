@@ -1,0 +1,5 @@
+# CODEOWNERS drives GitHub's "require code owner review" branch
+# protection rule on `main`. The catch-all makes @omprashantjain a
+# compulsory reviewer on every PR.
+
+* @omprashantjain

@@ -4,10 +4,18 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   children: ReactNode;
 }
 
-const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+const sizeClasses: Record<NonNullable<ModalProps['size']>, string> = {
+  sm: 'sm:max-w-md',
+  md: 'sm:max-w-xl md:max-w-2xl',
+  lg: 'sm:max-w-xl md:max-w-2xl lg:max-w-4xl',
+  xl: 'sm:max-w-2xl md:max-w-4xl lg:max-w-6xl',
+};
+
+const Modal = ({ isOpen, onClose, title, size = 'lg', children }: ModalProps) => {
   // Handle escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +55,7 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
 
       {/* Modal panel */}
       <div
-        className="relative w-full max-w-[95vw] sm:max-w-xl md:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-2xl transition-theme animate-slide-in"
+        className={`relative w-full max-w-[95vw] ${sizeClasses[size]} max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-2xl transition-theme animate-slide-in`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
