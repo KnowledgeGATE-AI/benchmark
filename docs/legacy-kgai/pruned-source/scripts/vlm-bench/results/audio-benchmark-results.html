@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Audio-to-Text Benchmark Results</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; background: #1a1a2e; color: #eee; padding: 30px; max-width: 1400px; margin: 0 auto; }
+        h1 { color: #00d9ff; }
+        h2 { color: #00d9ff; margin-top: 40px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        h3 { color: #888; margin-top: 30px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .summary-card { background: #252547; padding: 20px; border-radius: 10px; text-align: center; }
+        .summary-card.selected { border: 2px solid #00ff88; }
+        .summary-value { font-size: 2.5em; font-weight: bold; color: #00ff88; }
+        .summary-label { color: #888; margin-top: 5px; }
+        .summary-model { margin-top: 10px; font-weight: bold; }
+        .audio-section { background: #252547; border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .audio-header { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+        .audio-header audio { flex: 1; max-width: 400px; }
+        .audio-info { color: #888; }
+        .models-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .model-card { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+        .model-card.winner { border-color: #00ff88; }
+        .model-card.error { border-color: #ff4444; opacity: 0.7; }
+        .model-header { background: #333; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .model-name { font-weight: bold; color: #00d9ff; }
+        .model-size { color: #888; font-size: 0.9em; }
+        .badge { background: #00ff88; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; font-weight: bold; }
+        .model-stats { display: grid; grid-template-columns: repeat(3, 1fr); padding: 15px; border-bottom: 1px solid #333; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 1.4em; font-weight: bold; color: #00ff88; }
+        .stat-label { font-size: 0.8em; color: #888; }
+        .transcript { padding: 15px; font-size: 0.9em; line-height: 1.6; max-height: 300px; overflow-y: auto; }
+        .transcript.error-text { color: #ff4444; }
+        .download-link { display: inline-block; background: #00d9ff; color: #000; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; }
+        .download-link:hover { background: #00b8d4; }
+    </style>
+</head>
+<body>
+    <h1>Audio-to-Text Benchmark Results</h1>
+    <p style="color: #888;">Benchmark run: December 20, 2024 | Total audio: 3.2 minutes across 3 samples</p>
+    
+    <h2>Summary - Model Performance</h2>
+    <div class="summary">
+
+        <div class="summary-card selected">
+            <div class="summary-value">15.0x</div>
+            <div class="summary-label">Realtime Ratio</div>
+            <div class="summary-model">distil-whisper-large-v3</div>
+            <div style="color: #888; font-size: 0.85em;">~750M | 4.3s avg</div>
+            <div style="margin-top:5px;"><span class="badge">SELECTED</span></div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">14.3x</div>
+            <div class="summary-label">Realtime Ratio</div>
+            <div class="summary-model">whisper-large-v3-turbo</div>
+            <div style="color: #888; font-size: 0.85em;">~800M | 4.5s avg</div>
+            
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">10.4x</div>
+            <div class="summary-label">Realtime Ratio</div>
+            <div class="summary-model">whisper-medium</div>
+            <div style="color: #888; font-size: 0.85em;">~750M | 7.9s avg</div>
+            
+        </div>
+
+        <div class="summary-card" style="opacity: 0.5;">
+            <div class="summary-value" style="color: #ff4444;">FAILED</div>
+            <div class="summary-label">All 3 tests failed</div>
+            <div class="summary-model">whisper-large-v3</div>
+            <div style="color: #888; font-size: 0.85em;">~1.5GB</div>
+        </div>
+
+        <div class="summary-card" style="opacity: 0.5;">
+            <div class="summary-value" style="color: #ff4444;">FAILED</div>
+            <div class="summary-label">All 3 tests failed</div>
+            <div class="summary-model">whisper-small</div>
+            <div style="color: #888; font-size: 0.85em;">~240M</div>
+        </div>
+
+        <div class="summary-card" style="opacity: 0.5;">
+            <div class="summary-value" style="color: #ff4444;">FAILED</div>
+            <div class="summary-label">All 3 tests failed</div>
+            <div class="summary-model">whisper-base</div>
+            <div style="color: #888; font-size: 0.85em;">~140M</div>
+        </div>
+
+    </div>
+    
+    <h2>Detailed Results by Audio Sample</h2>
+
+    <div class="audio-section">
+        <div class="audio-header">
+            <div>
+                <h3 style="margin: 0; color: #00d9ff;">sample_data_structures.wav</h3>
+                <div class="audio-info">Duration: 65.7 seconds</div>
+            </div>
+            <audio controls>
+                <source src="../test-data/audio/sample_data_structures.wav" type="audio/wav">
+            </audio>
+            <a href="../test-data/audio/sample_data_structures.wav" download class="download-link">Download</a>
+        </div>
+        
+        <div class="models-grid">
+
+            <div class="model-card winner">
+                <div class="model-header">
+                    <span class="model-name">distil-whisper-large-v3</span>
+                    <span class="badge">FASTEST</span>
+                    <span class="model-size">~750M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.4s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">15.0x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">183</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Today we'll explore essential data structures in computer science. A data structure is a way of organizing and storing data so that it can be accessed and modified efficiently. The most fundamental structures are arrays and linked lists. Arrays provide constant time access to elements by index, but inserting or deleting elements can be expensive. Link lists, on the other hand, make insertion and deletion efficient, but require linear time to access elements. Stacks and cues are abstract. data types built on top of these basic structures. A stack follows last and first out principle, like a stack of plates. A queue follows first and first out, like a line at a bank. Trees are hierarchical structures with a root node and child nodes. Binary search trees allow efficient searching, with average time complexity of a login. Hash tables provide near constant time operations by using a hash function to map keys to indices. Understanding when to use each structure is crucial for writing efficient algorithms. The choice depends on your specific use case and the operations you need to perform most frequently.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">whisper-large-v3-turbo</span>
+                    
+                    <span class="model-size">~800M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.5s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">14.8x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">183</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Today we'll explore essential data structures in computer science. A data structure is a way of organizing and storing data so that it can be accessed and modified efficiently. The most fundamental structures are arrays and linked lists. Arrays provide constant time access to elements by index, but inserting or deleting elements can be expensive. Linked lists, on the other hand, make insertion and deletion efficient, but require linear time to access elements. Stacks and queues are abstract data types built on top of these basic structures. A stack follows last and first out principle, like a stack of plates. A queue follows first and first out, like a line at a bank. Trees are hierarchical structures with a root node and child nodes. Binary search trees allow efficient searching, with average time complexity of a login. Hash tables provide near constant time operations by using a hash function to map keys to indices. Understanding when to use each structure is crucial for writing efficient algorithms. The choice depends on your specific use case and the operations you need to perform most frequently.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">whisper-medium</span>
+                    
+                    <span class="model-size">~750M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">14.1s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">4.7x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">176</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Today we'll explore essential data structures in computer science. A data structure is a way of organizing and storing data so that it can be accessed and modified efficiently. The most fundamental structures are arrays and linked lists. Arrays provide constant time access to elements by index, but inserting or deleting elements can be expensive. Linked lists, on the other hand, make insertion and deletion efficient, but require linear time to access elements. Stacks and queues are abstract data types built on top of these basic structures. A stack follows last-and-first-out principle, like a stack of plates. A queue follows first-and-first-out, like a line at a bank. Trees are hierarchical structures with a root node and child nodes. Binary search trees allow efficient searching, with average time complexity of O log-in. Hash tables provide near-constant time operations by using a hash function to map keys to indices. Understanding when to use each structure is crucial for writing efficient algorithms. The choice depends on your specific use case and the operations you need to perform most frequently.</div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-large-v3</span>
+                    <span class="model-size">~1.5GB</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-small</span>
+                    <span class="model-size">~240M</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-base</span>
+                    <span class="model-size">~140M</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="audio-section">
+        <div class="audio-header">
+            <div>
+                <h3 style="margin: 0; color: #00d9ff;">sample_machine_learning.wav</h3>
+                <div class="audio-info">Duration: 60.9 seconds</div>
+            </div>
+            <audio controls>
+                <source src="../test-data/audio/sample_machine_learning.wav" type="audio/wav">
+            </audio>
+            <a href="../test-data/audio/sample_machine_learning.wav" download class="download-link">Download</a>
+        </div>
+        
+        <div class="models-grid">
+
+            <div class="model-card winner">
+                <div class="model-header">
+                    <span class="model-name">distil-whisper-large-v3</span>
+                    <span class="badge">FASTEST</span>
+                    <span class="model-size">~750M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.2s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">14.6x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">138</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Machine learning is a subset of artificial intelligence that enables systems to learn from data. Instead of being explicitly programmed, these systems identify patterns and make decisions. There are three main types of machine learning. Supervised learning uses label data to train models. The algorithm learns from examples with known outcomes. Classification and regression are common supervised tasks. Unsupervised learning works with unlabel data, finding hidden patterns or groupings, Clustering and dimensionality reduction are examples. Reinforcement learning involves an agent learning through trial and error, receiving rewards for good actions. Neural networks, inspired by the human brain, are powerful models for complex tasks. Deep learning uses multiple layers of neural networks. Key concepts include training data, validation, overfitting, and hyperparameter tuning. The field continues to advance rapidly with applications in computer vision, natural language processing and autonomous systems.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">whisper-medium</span>
+                    
+                    <span class="model-size">~750M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.6s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">13.2x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">138</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Machine learning is a subset of artificial intelligence that enables systems to learn from data. Instead of being explicitly programmed, these systems identify patterns and make decisions. There are three main types of machine learning. Supervised learning uses labeled data to train models. The algorithm learns from examples with known outcomes. Classification and regression are common supervised tasks. Unsupervised learning works with unlabeled data. Finding hidden patterns are groupings. Clustering and dimensionality reduction are examples. Reinforcement learning involves an agent learning through trial and error, receiving rewards for good actions. Neural networks inspired by the human brain are powerful models for complex tasks. Deep learning uses multiple layers of neural networks. Key concepts include training data, validation, overfitting, and hyperparameter tuning. The field continues to advance rapidly with applications in computer vision, natural language processing, and autonomous systems.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">whisper-large-v3-turbo</span>
+                    
+                    <span class="model-size">~800M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.7s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">13.0x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">138</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Machine learning is a subset of artificial intelligence that enables systems to learn from data. Instead of being explicitly programmed, these systems identify patterns and make decisions. There are three main types of machine learning. Supervised learning uses labeled data to train models. The algorithm learns from examples with known outcomes. Classification and regression are common supervised tasks. Unsupervised learning works with unlabeled data. Finding hidden patterns are groupings. Clustering and dimensionality reduction are examples. Reinforcement learning involves an agent learning through trial and error, receiving rewards for good actions. Neural networks, inspired by the human brain, are powerful models for complex tasks. Deep learning uses multiple layers of neural networks. Key concepts include training data, validation, overfitting, and hyperparameter tuning. The field continues to advance rapidly with applications in computer vision, natural language processing, and autonomous systems.</div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-large-v3</span>
+                    <span class="model-size">~1.5GB</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-small</span>
+                    <span class="model-size">~240M</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-base</span>
+                    <span class="model-size">~140M</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="audio-section">
+        <div class="audio-header">
+            <div>
+                <h3 style="margin: 0; color: #00d9ff;">sample_python_basics.wav</h3>
+                <div class="audio-info">Duration: 65.1 seconds</div>
+            </div>
+            <audio controls>
+                <source src="../test-data/audio/sample_python_basics.wav" type="audio/wav">
+            </audio>
+            <a href="../test-data/audio/sample_python_basics.wav" download class="download-link">Download</a>
+        </div>
+        
+        <div class="models-grid">
+
+            <div class="model-card winner">
+                <div class="model-header">
+                    <span class="model-name">distil-whisper-large-v3</span>
+                    <span class="badge">FASTEST</span>
+                    <span class="model-size">~750M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.2s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">15.3x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">168</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Welcome to today's lecture on Python programming fundamentals. Python is a high-level, interpreted programming language known for its simplicity and readability. It was created by Guido Van Rossum and first released in 1991. The key features of Python include dynamic typing, automatic memory management, and a comprehensive standard library. When you write Python code, you'll notice that indentation is syntactically significant. This means that the structure of your code is defined by how you indent your language. lines, rather than using braces like in C or Java. Let's start with variables. In Python, you don't need to declare the type of a variable. You simply assign a value to it. For example, x equals 5 creates an integer variable. Python supports multiple data types, including integers, floating point numbers, strings, lists, dictionaries, and more. Lists are ordered collections that can hold items of different types. Dictionaries are key value pairs, similar to hash maps and other languages. Understanding these data structures is fundamental to becoming proficient in Python.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">whisper-large-v3-turbo</span>
+                    
+                    <span class="model-size">~800M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.3s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">15.2x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">166</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Welcome to today's lecture on Python programming fundamentals. Python is a high-level, interpreted programming language known for its simplicity and readability. It was created by Guido Van Rossum and first released in 1991. The key features of Python include dynamic typing, automatic memory management, and a comprehensive standard library. When you write Python code, you'll notice that indentation is syntactically significant. This means that the structure of your code is defined by how you indent your lines, rather than using braces like in C or Java. Let's start with variables. In Python, you don't need to declare the type of a variable. You simply assign a value to it. For example, x equals 5 creates an integer variable. Python supports multiple data types, including integers, floating point numbers, strings, lists, dictionaries, and more. Lists are ordered collections that can hold items of different types. Dictionaries are key-value pairs, similar to hash maps in other languages. Understanding these data structures is fundamental to becoming proficient in Python.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">whisper-medium</span>
+                    
+                    <span class="model-size">~750M</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.9s</div>
+                        <div class="stat-label">Processing Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">13.3x</div>
+                        <div class="stat-label">Realtime Ratio</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">167</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                </div>
+                <div class="transcript"> Welcome to today's lecture on Python programming fundamentals. Python is a high-level, interpreted programming language known for its simplicity and readability. It was created by Guido van Rossum and first released in 1991. The key features of Python include dynamic typing, automatic memory management, and a comprehensive standard library. When you write Python code, you'll notice that indentation is syntactically significant. This means that the structure of your code is defined by how you indent your lines, rather than using braces like in C or Java. Let's start with variables. In Python, you don't need to declare the type of a variable. You simply assign a value to it. For example, x equals 5 creates an integer variable. Python supports multiple data types, including integers, floating point numbers, strings, lists, dictionaries, and more. Lists are ordered collections that can hold items of different types. Dictionaries are key value pairs, similar to hash maps and other languages. Understanding these data structures is fundamental to becoming proficient in Python.</div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-large-v3</span>
+                    <span class="model-size">~1.5GB</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-small</span>
+                    <span class="model-size">~240M</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+            <div class="model-card error">
+                <div class="model-header">
+                    <span class="model-name">whisper-base</span>
+                    <span class="model-size">~140M</span>
+                </div>
+                <div class="transcript error-text">
+                    <strong>Error:</strong> Failed to transcribe. Likely HuggingFace authentication issue or model not publicly available.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

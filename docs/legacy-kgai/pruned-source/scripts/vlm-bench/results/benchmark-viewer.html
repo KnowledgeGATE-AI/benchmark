@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLM Benchmark Results Viewer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 { color: #58a6ff; margin-bottom: 10px; }
+        h2 { color: #58a6ff; margin: 30px 0 15px; font-size: 1.3em; }
+        h3 { color: #8b949e; margin: 20px 0 10px; font-size: 1.1em; }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .stat-card.selected { border-color: #238636; background: #0d1117; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #58a6ff; }
+        .stat-label { color: #8b949e; font-size: 0.9em; }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin: 20px 0 10px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 8px 16px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #c9d1d9;
+        }
+        .tab:hover { background: #30363d; }
+        .tab.active { background: #238636; border-color: #238636; color: white; }
+
+        .audio-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .audio-player {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #0d1117;
+            border-radius: 6px;
+        }
+        .audio-player audio { flex: 1; max-width: 400px; }
+        .audio-info { flex: 1; }
+        .audio-title { font-weight: bold; color: #58a6ff; }
+        .audio-duration { color: #8b949e; font-size: 0.9em; }
+
+        .model-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .model-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .model-card.winner { border-color: #238636; }
+        .model-header {
+            padding: 15px;
+            background: #21262d;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .model-name { font-weight: bold; color: #58a6ff; }
+        .model-badge {
+            background: #238636;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+        }
+        .model-stats {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            border-bottom: 1px solid #30363d;
+        }
+        .model-stat { text-align: center; }
+        .model-stat-value { font-size: 1.3em; font-weight: bold; color: #7ee787; }
+        .model-stat-label { font-size: 0.8em; color: #8b949e; }
+        .model-transcript {
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        .model-transcript.error { color: #f85149; }
+
+        .word-timestamps {
+            margin-top: 15px;
+            padding: 10px;
+            background: #0d1117;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .timestamp { color: #7ee787; }
+        .word { color: #c9d1d9; }
+        .confidence-high { opacity: 1; }
+        .confidence-mid { opacity: 0.7; }
+        .confidence-low { opacity: 0.5; color: #f85149; }
+
+        .toggle-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+        .toggle-btn:hover { background: #30363d; }
+
+        .hidden { display: none; }
+
+        .loading { text-align: center; padding: 40px; color: #8b949e; }
+
+        /* Text-to-text section */
+        .text-comparison {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .text-input-sample {
+            background: #0d1117;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .text-output {
+            padding: 15px;
+            background: #0d1117;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Intelligence Pipeline - Model Benchmarks</h1>
+    <p style="color: #8b949e; margin-bottom: 20px;">Compare transcription quality, speed, and accuracy across Whisper models</p>
+
+    <div class="tabs" id="benchmark-tabs">
+        <div class="tab active" onclick="showSection('audio')">Audio-to-Text</div>
+        <div class="tab" onclick="showSection('text')">Text-to-Text</div>
+    </div>
+
+    <!-- Audio-to-Text Section -->
+    <div id="audio-section">
+        <h2>Audio-to-Text Benchmark Results</h2>
+
+        <div class="summary-grid" id="audio-summary"></div>
+
+        <h3>Audio Samples</h3>
+        <div class="audio-section" id="audio-players"></div>
+
+        <h3>Select Audio File to Compare Transcriptions</h3>
+        <div class="tabs" id="audio-tabs"></div>
+
+        <div class="model-comparison" id="model-comparison"></div>
+    </div>
+
+    <!-- Text-to-Text Section -->
+    <div id="text-section" class="hidden">
+        <h2>Text-to-Text Benchmark Results</h2>
+        <div class="summary-grid" id="text-summary"></div>
+        <h3>Sample Comparisons</h3>
+        <div id="text-comparison"></div>
+    </div>
+
+    <script>
+        // Load audio benchmark data
+        let audioData = null;
+        let textData = null;
+        let selectedAudio = null;
+
+        async function loadData() {
+            try {
+                // Load audio benchmark
+                const audioRes = await fetch('./audio-to-text_20251220_162552.json');
+                audioData = await audioRes.json();
+                renderAudioSection();
+            } catch (e) {
+                console.error('Error loading audio data:', e);
+            }
+
+            try {
+                // Try to load text benchmark
+                const files = ['text-to-text_20251220_161558.json'];
+                for (const file of files) {
+                    try {
+                        const res = await fetch('./' + file);
+                        if (res.ok) {
+                            textData = await res.json();
+                            renderTextSection();
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            } catch (e) {
+                console.error('Error loading text data:', e);
+            }
+        }
+
+        function renderAudioSection() {
+            if (!audioData) return;
+
+            // Summary stats
+            const models = {};
+            const audioFiles = new Set();
+
+            audioData.results.forEach(r => {
+                audioFiles.add(r.audio_file);
+                if (!models[r.model]) {
+                    models[r.model] = {
+                        name: r.model,
+                        size: r.model_size,
+                        totalTime: 0,
+                        totalWords: 0,
+                        count: 0,
+                        errors: 0,
+                        results: []
+                    };
+                }
+                if (r.error) {
+                    models[r.model].errors++;
+                } else {
+                    models[r.model].totalTime += r.time_sec || 0;
+                    models[r.model].totalWords += r.word_count || 0;
+                    models[r.model].count++;
+                }
+                models[r.model].results.push(r);
+            });
+
+            // Render summary
+            const summaryHtml = Object.values(models).map(m => {
+                const avgTime = m.count > 0 ? (m.totalTime / m.count).toFixed(1) : 'N/A';
+                const avgRT = m.count > 0 ? (m.results.reduce((s, r) => s + (r.realtime_ratio || 0), 0) / m.count).toFixed(1) : 'N/A';
+                const isSelected = m.name === 'distil-whisper-large-v3';
+                return `
+                    <div class="stat-card ${isSelected ? 'selected' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <div class="stat-value">${avgRT}x</div>
+                                <div class="stat-label">Realtime Ratio</div>
+                            </div>
+                            ${isSelected ? '<span class="model-badge">SELECTED</span>' : ''}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <strong>${m.name}</strong> <span style="color: #8b949e;">(${m.size})</span>
+                        </div>
+                        <div style="color: #8b949e; font-size: 0.85em; margin-top: 5px;">
+                            Avg time: ${avgTime}s | Words: ${m.totalWords} | Errors: ${m.errors}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('audio-summary').innerHTML = summaryHtml;
+
+            // Render audio players
+            const audioFilesArr = Array.from(audioFiles);
+            const playersHtml = audioFilesArr.map(file => {
+                const duration = audioData.results.find(r => r.audio_file === file)?.audio_duration || 0;
+                return `
+                    <div class="audio-player">
+                        <audio controls src="../test-data/audio/${file}"></audio>
+                        <div class="audio-info">
+                            <div class="audio-title">${file}</div>
+                            <div class="audio-duration">${duration.toFixed(1)} seconds</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('audio-players').innerHTML = playersHtml;
+
+            // Render audio tabs
+            const tabsHtml = audioFilesArr.map((file, i) => `
+                <div class="tab ${i === 0 ? 'active' : ''}" onclick="selectAudio('${file}', this)">${file.replace('.wav', '')}</div>
+            `).join('');
+            document.getElementById('audio-tabs').innerHTML = tabsHtml;
+
+            // Select first audio
+            selectAudio(audioFilesArr[0]);
+        }
+
+        function selectAudio(audioFile, tabEl) {
+            selectedAudio = audioFile;
+
+            // Update tab styling
+            document.querySelectorAll('#audio-tabs .tab').forEach(t => t.classList.remove('active'));
+            if (tabEl) tabEl.classList.add('active');
+            else document.querySelector(`#audio-tabs .tab`)?.classList.add('active');
+
+            // Render model comparison
+            const results = audioData.results.filter(r => r.audio_file === audioFile);
+            const sortedResults = results.sort((a, b) => (b.realtime_ratio || 0) - (a.realtime_ratio || 0));
+
+            const comparisonHtml = sortedResults.map((r, i) => {
+                const isWinner = i === 0 && !r.error;
+                const hasError = !!r.error;
+
+                let transcriptHtml = '';
+                if (hasError) {
+                    transcriptHtml = `<div class="model-transcript error">Error: ${r.error.substring(0, 200)}...</div>`;
+                } else {
+                    const words = r.segments?.flatMap(s => s.words || []) || [];
+                    const wordTimestampsHtml = words.slice(0, 50).map(w => {
+                        const prob = w.probability || 0;
+                        const confClass = prob > 0.9 ? 'confidence-high' : prob > 0.7 ? 'confidence-mid' : 'confidence-low';
+                        return `<span class="${confClass}"><span class="timestamp">[${w.start?.toFixed(1)}s]</span> <span class="word">${w.word}</span></span>`;
+                    }).join(' ');
+
+                    transcriptHtml = `
+                        <div class="model-transcript">${r.output_text || 'No transcript'}</div>
+                        <button class="toggle-btn" onclick="toggleTimestamps(this)">Show Word Timestamps</button>
+                        <div class="word-timestamps hidden">${wordTimestampsHtml || 'No word-level timestamps'}${words.length > 50 ? '...' : ''}</div>
+                    `;
+                }
+
+                return `
+                    <div class="model-card ${isWinner ? 'winner' : ''}">
+                        <div class="model-header">
+                            <span class="model-name">${r.model}</span>
+                            ${isWinner ? '<span class="model-badge">FASTEST</span>' : ''}
+                            <span style="color: #8b949e;">${r.model_size}</span>
+                        </div>
+                        ${!hasError ? `
+                        <div class="model-stats">
+                            <div class="model-stat">
+                                <div class="model-stat-value">${r.time_sec?.toFixed(1) || 'N/A'}s</div>
+                                <div class="model-stat-label">Time</div>
+                            </div>
+                            <div class="model-stat">
+                                <div class="model-stat-value">${r.realtime_ratio?.toFixed(1) || 'N/A'}x</div>
+                                <div class="model-stat-label">RT Ratio</div>
+                            </div>
+                            <div class="model-stat">
+                                <div class="model-stat-value">${r.word_count || 'N/A'}</div>
+                                <div class="model-stat-label">Words</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        ${transcriptHtml}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('model-comparison').innerHTML = comparisonHtml;
+        }
+
+        function toggleTimestamps(btn) {
+            const timestamps = btn.nextElementSibling;
+            timestamps.classList.toggle('hidden');
+            btn.textContent = timestamps.classList.contains('hidden') ? 'Show Word Timestamps' : 'Hide Word Timestamps';
+        }
+
+        function renderTextSection() {
+            if (!textData) {
+                document.getElementById('text-summary').innerHTML = '<p>Text-to-text benchmark data not available.</p>';
+                return;
+            }
+
+            // Summary
+            const models = {};
+            textData.results.forEach(r => {
+                if (!models[r.model]) {
+                    models[r.model] = { name: r.model, size: r.model_size, results: [], totalTime: 0, totalTokens: 0 };
+                }
+                models[r.model].results.push(r);
+                models[r.model].totalTime += r.time_sec || 0;
+                models[r.model].totalTokens += r.tokens_per_sec || 0;
+            });
+
+            const summaryHtml = Object.values(models).map(m => {
+                const avgTokSec = m.results.length > 0 ? (m.totalTokens / m.results.length).toFixed(1) : 'N/A';
+                const avgTime = m.results.length > 0 ? (m.totalTime / m.results.length).toFixed(1) : 'N/A';
+                const isSelected = m.name.includes('Qwen2.5-3B');
+                return `
+                    <div class="stat-card ${isSelected ? 'selected' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <div class="stat-value">${avgTokSec}</div>
+                                <div class="stat-label">Tokens/sec</div>
+                            </div>
+                            ${isSelected ? '<span class="model-badge">SELECTED</span>' : ''}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <strong>${m.name}</strong> <span style="color: #8b949e;">(${m.size})</span>
+                        </div>
+                        <div style="color: #8b949e; font-size: 0.85em; margin-top: 5px;">
+                            Avg time: ${avgTime}s
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('text-summary').innerHTML = summaryHtml;
+
+            // Sample comparisons
+            const samples = textData.results.filter(r => r.sample_id === 1);
+            const compHtml = samples.map(r => `
+                <div class="text-comparison">
+                    <h4 style="color: #58a6ff; margin-bottom: 10px;">${r.model} (${r.model_size})</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <strong style="color: #8b949e;">Input (VLM Description)</strong>
+                            <div class="text-input-sample">${r.input_text?.substring(0, 300) || 'N/A'}...</div>
+                        </div>
+                        <div>
+                            <strong style="color: #8b949e;">Output (Summary)</strong>
+                            <div class="text-output">${r.output_text || 'N/A'}</div>
+                            <div style="color: #8b949e; font-size: 0.8em; margin-top: 5px;">
+                                Time: ${r.time_sec?.toFixed(1)}s | Words: ${r.word_count} | Tokens/s: ${r.tokens_per_sec?.toFixed(1)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('text-comparison').innerHTML = compHtml || '<p>No sample data available.</p>';
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('#benchmark-tabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('audio-section').classList.toggle('hidden', section !== 'audio');
+            document.getElementById('text-section').classList.toggle('hidden', section !== 'text');
+        }
+
+        // Initialize
+        loadData();
+    </style>
+</body>
+</html>

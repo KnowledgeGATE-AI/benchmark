@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Text-to-Text Benchmark Results - Full Comparison</title>
+    <style>
+        body { font-family: -apple-system, system-ui, sans-serif; background: #1a1a2e; color: #eee; padding: 30px; max-width: 1600px; margin: 0 auto; }
+        h1 { color: #ff9f43; }
+        h2 { color: #ff9f43; margin-top: 40px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        h3 { color: #888; margin-top: 20px; margin-bottom: 10px; }
+        .intro { color: #888; margin-bottom: 30px; line-height: 1.6; }
+        
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin: 20px 0; }
+        .summary-card { background: #252547; padding: 20px; border-radius: 10px; text-align: center; }
+        .summary-card.selected { border: 2px solid #ff9f43; }
+        .summary-value { font-size: 2.5em; font-weight: bold; color: #ff9f43; }
+        .summary-label { color: #888; margin-top: 5px; }
+        .summary-model { margin-top: 10px; font-weight: bold; }
+        .badge { background: #ff9f43; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; font-weight: bold; }
+        
+        .sample-section { background: #252547; border-radius: 10px; padding: 25px; margin: 30px 0; }
+        .sample-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .sample-title { font-size: 1.3em; color: #ff9f43; }
+        .sample-meta { color: #888; font-size: 0.9em; }
+        
+        .input-section { background: #1a1a2e; border-radius: 8px; padding: 20px; margin-bottom: 25px; border-left: 4px solid #00d9ff; }
+        .input-title { color: #00d9ff; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; }
+        .description-item { margin: 10px 0; padding: 10px; background: #252547; border-radius: 5px; }
+        .timestamp { color: #00d9ff; font-weight: bold; margin-right: 10px; }
+        .desc-text { color: #ddd; }
+        
+        .prompt-section { background: #1a1a2e; border-radius: 8px; padding: 15px; margin-bottom: 25px; border-left: 4px solid #888; }
+        .prompt-title { color: #888; font-weight: bold; margin-bottom: 10px; }
+        .prompt-text { color: #aaa; font-family: monospace; font-size: 0.85em; white-space: pre-wrap; }
+        
+        .outputs-title { color: #ff9f43; font-weight: bold; margin-bottom: 15px; font-size: 1.1em; }
+        .models-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }
+        .model-card { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+        .model-card.winner { border-color: #ff9f43; border-width: 2px; }
+        .model-header { background: #333; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .model-name { font-weight: bold; color: #ff9f43; }
+        .model-size { color: #888; font-size: 0.9em; }
+        .model-stats { display: grid; grid-template-columns: repeat(4, 1fr); padding: 12px; border-bottom: 1px solid #333; background: #252547; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 1.1em; font-weight: bold; color: #ff9f43; }
+        .stat-label { font-size: 0.75em; color: #888; }
+        .output { padding: 15px; font-size: 0.9em; line-height: 1.7; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>Text-to-Text Benchmark Results</h1>
+    <div class="intro">
+        <strong>Task:</strong> Given a set of VLM screenshot descriptions (what the AI saw in video screenshots), 
+        compress them into a coherent educational summary.<br>
+        <strong>Benchmark run:</strong> December 20, 2024<br>
+        <strong>Models tested:</strong> 3 fast LLM models (Qwen, Llama, Gemma)
+    </div>
+    
+    <h2>Summary - Model Performance</h2>
+    <div class="summary">
+
+        <div class="summary-card selected">
+            <div class="summary-value">130.8</div>
+            <div class="summary-label">Tokens/sec</div>
+            <div class="summary-model">Qwen2.5-3B-4bit</div>
+            <div style="color: #888; font-size: 0.85em;">3B | 5.3s avg | 283 words output</div>
+            <div style="margin-top:5px;"><span class="badge">SELECTED</span></div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">80.3</div>
+            <div class="summary-label">Tokens/sec</div>
+            <div class="summary-model">Llama-3.2-3B-4bit</div>
+            <div style="color: #888; font-size: 0.85em;">3B | 7.3s avg | 316 words output</div>
+            
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-value">47.9</div>
+            <div class="summary-label">Tokens/sec</div>
+            <div class="summary-model">Gemma-2-2B-4bit</div>
+            <div style="color: #888; font-size: 0.85em;">2B | 11.7s avg | 289 words output</div>
+            
+        </div>
+
+    </div>
+    
+    <h2>Detailed Input/Output Comparison</h2>
+
+    <div class="sample-section">
+        <div class="sample-header">
+            <div class="sample-title">Physics Motion 20Min</div>
+            <div class="sample-meta">Duration: 20 minutes | 8 VLM descriptions</div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-title">INPUT: VLM Screenshot Descriptions (what was given to the model)</div>
+
+            <div class="description-item">
+                <span class="timestamp">[00:30]</span>
+                <span class="desc-text">Chapter header: 'Kinematics: Motion in One Dimension'. Diagram shows a car moving along a straight road.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[01:00]</span>
+                <span class="desc-text">Definitions shown: Displacement (Δx), Velocity (v = Δx/Δt), Acceleration (a = Δv/Δt). Each with SI units.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[01:30]</span>
+                <span class="desc-text">Position vs. Time graph with a straight line. Slope is labeled as velocity. Rise and run marked.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[02:00]</span>
+                <span class="desc-text">Velocity vs. Time graph showing constant acceleration. Area under curve shaded and labeled as displacement.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[02:30]</span>
+                <span class="desc-text">The four kinematic equations displayed in a box with conditions: constant acceleration required.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[03:00]</span>
+                <span class="desc-text">Problem solving steps: 1) Identify knowns 2) Identify unknown 3) Select equation 4) Solve. Example with car braking.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[03:30]</span>
+                <span class="desc-text">Free fall special case introduced. g = 9.8 m/s² shown with diagram of falling ball with velocity vectors.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[04:00]</span>
+                <span class="desc-text">Practice problem: 'A ball is thrown upward at 20 m/s. Find max height.' Solution steps shown on right side.</span>
+            </div>
+
+        </div>
+        
+        <div class="prompt-section">
+            <div class="prompt-title">PROMPT GIVEN TO MODEL:</div>
+            <div class="prompt-text">You are an educational content summarizer. Given a series of VLM descriptions 
+from video screenshots, create a cohesive summary of the educational content.
+
+Descriptions:
+[The descriptions above]
+
+Create a flowing educational summary (200-400 words) that:
+1. Captures the key concepts taught
+2. Maintains logical flow
+3. Is suitable for a student review</div>
+        </div>
+        
+        <div class="outputs-title">OUTPUT: Model Summaries</div>
+        <div class="models-grid">
+
+            <div class="model-card winner">
+                <div class="model-header">
+                    <span class="model-name">Qwen2.5-3B-4bit</span>
+                    <span class="badge">FASTEST</span>
+                    <span class="model-size">3B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">4.2s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">134.1</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">186</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.4GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">In this lecture on kinematics, we begin by introducing the fundamental concepts of displacement, velocity, and acceleration, all represented with their respective SI units. A visual representation of a car moving along a straight road highlights displacement, velocity, and acceleration, with the slope of a position vs. time graph illustrating velocity. The velocity vs. time graph further clarifies displacement through area under the curve, emphasizing the relationship between velocity and displacement. The four kinematic equations, displayed in a box, are introduced, with the condition of constant acceleration being highlighted. The lecture then moves on to problem-solving techniques, showing step-by-step methods for solving problems, such as identifying knowns, unknowns, and selecting the appropriate equation. A special case of free fall is introduced, with the acceleration due to gravity (g = 9.8 m/s²) demonstrated through a diagram of a falling ball. Finally, the lecture concludes with a practice problem, where a ball thrown upward at 20 m/s is used to find the maximum height it reaches. Throughout the lecture, the concepts are reinforced through visual aids and practical examples, providing a comprehensive understanding of motion in one dimension.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">Llama-3.2-3B-4bit</span>
+                    
+                    <span class="model-size">3B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">6.6s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">94.0</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">322</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.4GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">The lecture begins with a visual introduction to kinematics, focusing on motion in one dimension. A diagram of a car moving along a straight road sets the stage for the discussion of key concepts. The instructor defines displacement, velocity, and acceleration, providing SI units for each. These definitions form the foundation of the lecture, establishing the building blocks for understanding motion.
+
+The instructor then shifts focus to the relationship between position and time, illustrating a straight line on a position vs. time graph with a labeled slope representing velocity. This visual aid helps students grasp the concept of velocity as the rate of change of position.
+
+Next, the instructor explores the connection between velocity and time, showcasing a velocity vs. time graph with a shaded area representing displacement. This visual representation highlights the relationship between velocity, time, and displacement, emphasizing the importance of constant acceleration in these equations.
+
+The instructor then delves into the four kinematic equations, requiring constant acceleration as a condition. This critical concept is crucial for solving problems involving motion.
+
+To illustrate problem-solving strategies, the instructor walks students through a step-by-step approach, identifying knowns, unknowns, selecting the appropriate equation, and solving. This example is used to demonstrate the application of kinematic equations in a real-world scenario, such as a car braking.
+
+The lecture takes a brief detour to discuss the special case of free fall, where the acceleration due to gravity (g) is 9.8 m/s². A diagram of a falling ball with velocity vectors is used to illustrate this concept.
+
+Finally, the instructor presents a practice problem, guiding students through the solution steps for finding the maximum height of a ball thrown upward at 20 m/s. This example reinforces the application of kinematic equations in a practical context, solidifying students' understanding of motion in one dimension. Throughout the lecture, visual aids and clear explanations facilitate a deep understanding of the concepts, making the material accessible and engaging for students.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">Gemma-2-2B-4bit</span>
+                    
+                    <span class="model-size">2B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">9.9s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">58.5</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">313</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.1GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">This lecture introduces the fundamental concepts of kinematics, focusing on motion in one dimension.  
+
+The video begins with a visual representation of a car moving along a straight road, setting the stage for understanding motion in a simple, familiar context.  
+
+The first section dives into defining key terms: displacement (Δx), velocity (v = Δx/Δt), and acceleration (a = Δv/Δt).  These are presented with their SI units, emphasizing their importance in describing motion.  
+
+The video then transitions to a position-time graph, illustrating the relationship between position and time. The slope of this graph, labeled as velocity, provides a visual representation of how an object's position changes over time.  The rise and run of the graph are also highlighted, providing a visual understanding of displacement.
+
+The lecture then explores the relationship between velocity and time, showcasing a scenario with constant acceleration.  The area under the curve in this graph is shaded and labeled as displacement, demonstrating the concept of accumulated displacement over time.  
+
+The video then presents four key kinematic equations, specifically highlighting the conditions where constant acceleration is required.  The equations are displayed in a box, providing a clear and concise visual representation of these fundamental formulas.  
+
+The lecture concludes by introducing the concept of free fall, a special case where acceleration is constant.  The video shows a diagram of a falling ball with velocity vectors, illustrating the impact of gravity on motion.  
+
+Finally, the lecture concludes with a practice problem involving a ball thrown upward at a specific velocity.  The steps to solve this problem are clearly shown, demonstrating the application of kinematic equations in a practical context.  
+
+
+This lecture effectively combines visual aids, clear explanations, and practical examples to provide a comprehensive understanding of motion in one dimension.  The video's use of diagrams, graphs, and problem-solving steps makes it engaging and easy to follow, ensuring a solid foundation in kinematics for students.</div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="sample-section">
+        <div class="sample-header">
+            <div class="sample-title">Python Functions 45Min</div>
+            <div class="sample-meta">Duration: 45 minutes | 15 VLM descriptions</div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-title">INPUT: VLM Screenshot Descriptions (what was given to the model)</div>
+
+            <div class="description-item">
+                <span class="timestamp">[00:30]</span>
+                <span class="desc-text">Title slide shows 'Python Functions: From Basics to Advanced'. IDE visible in background with Python logo.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[01:00]</span>
+                <span class="desc-text">Code editor shows: 'def greet(name): return f"Hello, {name}!"' with syntax highlighting. Arrow points to 'def' keyword.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[01:30]</span>
+                <span class="desc-text">Diagram shows function anatomy: 'def' keyword, function name, parameters in parentheses, colon, indented body, return statement.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[02:00]</span>
+                <span class="desc-text">Terminal output shows function being called: greet('Alice') outputs 'Hello, Alice!'</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[02:30]</span>
+                <span class="desc-text">Slide titled 'Parameters vs Arguments' with two columns explaining the difference. Examples shown below.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[03:00]</span>
+                <span class="desc-text">Code example shows default parameters: 'def greet(name, greeting="Hello")'. Multiple function calls demonstrate behavior.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[03:30]</span>
+                <span class="desc-text">The *args syntax is introduced with example: 'def sum_all(*numbers)'. Visualization shows how it collects multiple arguments.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[04:00]</span>
+                <span class="desc-text">Similar slide for **kwargs showing keyword argument collection. Dictionary unpacking is demonstrated.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[04:30]</span>
+                <span class="desc-text">Return values explained with diagram showing data flow: input → function processing → output.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[05:00]</span>
+                <span class="desc-text">Multiple return values shown: 'def min_max(lst): return min(lst), max(lst)'. Tuple unpacking demonstrated.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[05:30]</span>
+                <span class="desc-text">Lambda functions introduced: 'square = lambda x: x**2'. Comparison with regular function definition.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[06:00]</span>
+                <span class="desc-text">Use case for lambda: sorting with custom key. Code shows: sorted(names, key=lambda x: len(x))</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[06:30]</span>
+                <span class="desc-text">Scope diagram shows: Local → Enclosing → Global → Built-in (LEGB rule). Variables highlighted at each level.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[07:00]</span>
+                <span class="desc-text">Example of closure: inner function accessing outer function's variable. Memory diagram explains retention.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[07:30]</span>
+                <span class="desc-text">Summary: 'Functions Best Practices' with checklist including naming conventions, docstrings, single responsibility.</span>
+            </div>
+
+        </div>
+        
+        <div class="prompt-section">
+            <div class="prompt-title">PROMPT GIVEN TO MODEL:</div>
+            <div class="prompt-text">You are an educational content summarizer. Given a series of VLM descriptions 
+from video screenshots, create a cohesive summary of the educational content.
+
+Descriptions:
+[The descriptions above]
+
+Create a flowing educational summary (200-400 words) that:
+1. Captures the key concepts taught
+2. Maintains logical flow
+3. Is suitable for a student review</div>
+        </div>
+        
+        <div class="outputs-title">OUTPUT: Model Summaries</div>
+        <div class="models-grid">
+
+            <div class="model-card winner">
+                <div class="model-header">
+                    <span class="model-name">Qwen2.5-3B-4bit</span>
+                    <span class="badge">FASTEST</span>
+                    <span class="model-size">3B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">6.2s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">129.4</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">354</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.5GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">In this lecture, we delve into the world of Python functions, starting with the basics and gradually moving towards more advanced concepts. The slide titled 'Python Functions: From Basics to Advanced' sets the stage, with an IDE visible in the background and the Python logo displayed.
+
+At [01:00], the code editor shows the function definition 'def greet(name): return f"Hello, {name}!"' with syntax highlighting. The 'def' keyword is highlighted, emphasizing its importance in defining a function. The function anatomy is then illustrated in a diagram, showing the 'def' keyword, function name, parameters in parentheses, colon, indented body, and the return statement.
+
+As we progress, we see the function being called in the terminal at [02:00], with the output 'Hello, Alice!' displayed. This example helps solidify the concept of function execution and output. A slide titled 'Parameters vs Arguments' further clarifies the difference between parameters and arguments, with examples shown to illustrate the point.
+
+At [03:00], we learn about default parameters, where the function 'greet' is defined with a default parameter 'greeting="Hello"'. Multiple function calls demonstrate how default parameters work. The introduction of the *args syntax at [04:00] is then explained, showing how it collects multiple arguments. Similarly, the **kwargs syntax is introduced, demonstrating how keyword arguments are collected and unpacked into a dictionary.
+
+The concept of return values is explained with a diagram showing the data flow from input to function processing and finally to the output. We then see examples of multiple return values, such as 'min_max(lst) = min(lst), max(lst)', and how tuple unpacking is used to handle these return values.
+
+Lambda functions are introduced at [06:00], with examples demonstrating their use in sorting with a custom key. The scope diagram at [07:00] shows the LEGB rule, highlighting the order of variable lookup in Python. A closure example is also shown, where an inner function accesses an outer function's variable, illustrating the concept of variable retention.
+
+To summarize, this lecture covers the fundamentals of Python functions, including parameters, default parameters, lambda functions, and scope. It also introduces more advanced concepts such as *args, **kwargs, and closures, providing a comprehensive understanding of functions in Python.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">Llama-3.2-3B-4bit</span>
+                    
+                    <span class="model-size">3B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">7.5s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">75.4</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">307</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.4GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">In this lecture on Python functions, students begin by learning the basics of function definitions, including syntax highlighting and the use of the 'def' keyword. A diagram illustrates the anatomy of a function, including parameters, a colon, and an indented body. The students then see how to call a function, using the terminal output to demonstrate the greeting function.
+
+The next slide explores the difference between parameters and arguments, with examples illustrating how parameters can be used to specify default values. This concept is further developed by introducing the *args syntax, which allows a function to collect multiple arguments. The students also learn about **kwargs, which enables the collection of keyword arguments.
+
+The return values of a function are explained, with a diagram showing the data flow from input to output. Students see how to handle multiple return values, using tuple unpacking. Lambda functions are introduced, and their use is demonstrated in sorting with a custom key.
+
+The students then learn about the use cases for lambda functions, including sorting and data processing. The scope of a function is explained, using a diagram to illustrate the LEGB rule (Local, Enclosing, Global, Built-in). This concept is further developed by demonstrating closure, where an inner function accesses a variable from the outer function.
+
+The lecture concludes with a summary of best practices for functions, including naming conventions, docstrings, and single responsibility. Throughout the lecture, visual aids such as diagrams and code examples help to illustrate key concepts and promote understanding.
+
+By the end of the lecture, students have gained a comprehensive understanding of Python functions, including their syntax, behavior, and use cases. The visual narrative of the lecture helps to reinforce this understanding, making it easier for students to apply their knowledge in practical situations. The lecture provides a solid foundation for further study in programming and software development.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">Gemma-2-2B-4bit</span>
+                    
+                    <span class="model-size">2B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">11.9s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">42.6</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">285</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.3GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">This lecture delves into the fundamentals and advanced concepts of Python functions, providing a comprehensive understanding of their structure, usage, and best practices. 
+
+The lecture begins with a clear introduction, showcasing the title slide and a visual representation of the Python IDE.  The focus then shifts to the core elements of a function, starting with the syntax highlighting of the 'def' keyword and the basic structure of a function definition. The diagram illustrating the function anatomy provides a visual representation of the essential components, including the 'def' keyword, function name, parameters, body, and return statement. 
+
+The lecture then explores the concept of parameters and arguments, highlighting the distinction between them.  The use of default parameters and the *args and *kwargs syntax are introduced through practical examples, demonstrating how these features enhance function flexibility.  The lecture continues with a clear explanation of return values, using a diagram to illustrate the data flow from input to the function's processing and finally, the output. 
+
+The lecture then dives into the world of lambda functions, providing a clear comparison with regular function definitions.  The use case of lambda functions, particularly in the context of sorting with custom keys, is illustrated with a practical code example.  The lecture concludes with a comprehensive overview of the scope rules, showcasing the LEGB rule, and the concept of closures, highlighting how inner functions can access and manipulate variables from their outer functions.  
+
+Finally, the lecture emphasizes the importance of best practices for writing Python functions, including naming conventions, docstrings, and single responsibility, providing a checklist for developers to follow.  
+
+
+This lecture provides a comprehensive and engaging exploration of Python functions, equipping viewers with a solid understanding of their structure, usage, and best practices.</div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="sample-section">
+        <div class="sample-header">
+            <div class="sample-title">Statistics Lecture 30Min</div>
+            <div class="sample-meta">Duration: 30 minutes | 10 VLM descriptions</div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-title">INPUT: VLM Screenshot Descriptions (what was given to the model)</div>
+
+            <div class="description-item">
+                <span class="timestamp">[00:30]</span>
+                <span class="desc-text">The slide shows 'Chapter 3: Measures of Central Tendency' with a subtitle about understanding mean, median, and mode. The instructor's hand is visible pointing to the title.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[01:00]</span>
+                <span class="desc-text">A definition of 'Mean' is displayed: 'The arithmetic average calculated by summing all values and dividing by the count.' An example shows: (5+7+3+9+6)/5 = 6.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[01:30]</span>
+                <span class="desc-text">The instructor writes a formula on the whiteboard: x̄ = Σx/n, explaining that x̄ represents the sample mean and n is the sample size.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[02:00]</span>
+                <span class="desc-text">A practice problem appears: 'Find the mean of: 12, 15, 18, 21, 24'. The solution steps are shown below.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[02:30]</span>
+                <span class="desc-text">The word 'Median' is highlighted in red. Definition: 'The middle value when data is arranged in order.' A visual shows 5 numbered boxes arranged in sequence.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[03:00]</span>
+                <span class="desc-text">Two examples are shown side by side: one with odd count (5 values, median is 3rd) and one with even count (6 values, median is average of 3rd and 4th).</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[03:30]</span>
+                <span class="desc-text">The slide introduces 'Mode' as 'The most frequently occurring value.' An example dataset shows: 2, 3, 3, 4, 5, 3, 6 with 3 circled as the mode.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[04:00]</span>
+                <span class="desc-text">A comparison table shows: Mean (affected by outliers), Median (resistant to outliers), Mode (can have multiple values or none).</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[04:30]</span>
+                <span class="desc-text">Real-world application example: 'Salaries in a company' showing how one CEO salary of $10M skews the mean but not the median.</span>
+            </div>
+
+            <div class="description-item">
+                <span class="timestamp">[05:00]</span>
+                <span class="desc-text">Summary slide: 'Key Takeaways' with three bullet points about when to use each measure of central tendency.</span>
+            </div>
+
+        </div>
+        
+        <div class="prompt-section">
+            <div class="prompt-title">PROMPT GIVEN TO MODEL:</div>
+            <div class="prompt-text">You are an educational content summarizer. Given a series of VLM descriptions 
+from video screenshots, create a cohesive summary of the educational content.
+
+Descriptions:
+[The descriptions above]
+
+Create a flowing educational summary (200-400 words) that:
+1. Captures the key concepts taught
+2. Maintains logical flow
+3. Is suitable for a student review</div>
+        </div>
+        
+        <div class="outputs-title">OUTPUT: Model Summaries</div>
+        <div class="models-grid">
+
+            <div class="model-card winner">
+                <div class="model-header">
+                    <span class="model-name">Qwen2.5-3B-4bit</span>
+                    <span class="badge">FASTEST</span>
+                    <span class="model-size">3B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">5.6s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">129.0</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">310</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.5GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">In this lecture, the instructor systematically introduces the measures of central tendency: mean, median, and mode, providing a clear understanding of how each is calculated and used. Starting with the definition of mean, which is the average calculated by summing all values and dividing by the count, the instructor demonstrates this concept with an example: (5+7+3+9+6)/5 = 6. The formula x̄ = Σx/n is then introduced, with x̄ representing the sample mean and n being the sample size.
+
+Moving on, the instructor highlights the concept of median, explaining that it is the middle value when data is arranged in order. This is illustrated with a visual of numbered boxes arranged in sequence. The instructor then shows how to find the median in both odd and even count datasets, further emphasizing the importance of this measure in resisting the influence of outliers.
+
+Mode, the most frequently occurring value, is introduced next. Using an example dataset, the instructor demonstrates how to identify the mode and notes that a dataset can have multiple modes or none at all. This is further reinforced with a comparison table that shows the strengths and weaknesses of each measure: mean is affected by outliers, median is resistant to outliers, and mode can have multiple values or none.
+
+To illustrate the practical application of these measures, the instructor uses a real-world example of company salaries. One CEO's salary of $10M skews the mean but not the median, highlighting the importance of understanding how each measure is affected by outliers. Finally, the lecture concludes with a summary slide that highlights the key takeaways for when to use each measure of central tendency: mean for datasets without outliers, median for resistance to outliers, and mode for identifying the most frequently occurring value.
+
+This structured approach ensures that the lecture progresses logically and effectively communicates the concepts and their practical applications.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">Llama-3.2-3B-4bit</span>
+                    
+                    <span class="model-size">3B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">7.9s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">71.4</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">321</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.4GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">In this 30-minute educational video, the instructor guides students through the concept of measures of central tendency, specifically mean, median, and mode. The lesson begins with an introduction to the concept of mean, defined as the arithmetic average calculated by summing all values and dividing by the count. An example illustrates this concept, demonstrating how to calculate the mean of a set of numbers.
+
+As the lesson progresses, the instructor introduces the concept of median, which is the middle value when data is arranged in order. A visual representation of this concept is shown, with five numbered boxes arranged in sequence. The instructor then highlights the importance of understanding the difference between mean and median, particularly when dealing with outliers.
+
+Next, the instructor introduces the concept of mode, which is the most frequently occurring value. An example dataset demonstrates how to identify the mode, and the instructor notes that mode can have multiple values or none. A comparison table is also presented, highlighting the differences between mean, median, and mode.
+
+The instructor then applies the concepts to a real-world scenario, using a company's salaries as an example. The CEO's salary of $10M skews the mean, but not the median, illustrating the importance of understanding the context in which these measures are used.
+
+To summarize, the instructor provides three key takeaways: use mean when the data is normally distributed and the sample size is large, use median when the data is skewed or contains outliers, and use mode when the data has multiple values or is categorical. By understanding these measures of central tendency, students can better analyze and interpret data in various contexts.
+
+Throughout the lesson, the instructor uses visual aids and examples to illustrate key concepts, making the material accessible and engaging for students. The comparison table and real-world application example help to drive home the importance of understanding these concepts and how they can be applied in different situations.</div>
+            </div>
+
+            <div class="model-card ">
+                <div class="model-header">
+                    <span class="model-name">Gemma-2-2B-4bit</span>
+                    
+                    <span class="model-size">2B</span>
+                </div>
+                <div class="model-stats">
+                    <div class="stat">
+                        <div class="stat-value">13.2s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">42.6</div>
+                        <div class="stat-label">Tok/sec</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">270</div>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">2.3GB</div>
+                        <div class="stat-label">Memory</div>
+                    </div>
+                </div>
+                <div class="output">This lecture delved into the fundamental concepts of measures of central tendency, exploring their applications in understanding data distributions. The session began with a clear introduction to the three key measures: mean, median, and mode.
+
+The first section focused on the mean, defined as the arithmetic average calculated by summing all values and dividing by the count.  The instructor utilized a practical example, demonstrating the calculation process with a set of numbers.  A whiteboard formula further clarified the concept, emphasizing the importance of sample size (n) in determining the sample mean (x̄).
+
+Next, the focus shifted to the median, a crucial measure for understanding the central value in a dataset. The instructor highlighted the median's definition: the middle value when data is arranged in order.  Visual aids, including a series of numbered boxes, illustrated this concept effectively.  The lecture then explored the mode, defined as the most frequently occurring value in a dataset.  An example dataset with circled 3 as the mode, showcased this concept.
+
+The session concluded by comparing the three measures, emphasizing their distinct characteristics.  The mean is susceptible to outliers, while the median is more robust to them.  The mode, however, can be influenced by multiple values or even none.  A real-world application example, illustrating how a single outlier can skew the mean but not the median, further emphasized this point.  
+
+The lecture concluded with a summary slide highlighting the key takeaways, emphasizing the appropriate use of each measure of central tendency in different scenarios.  This approach provided a comprehensive understanding of the three measures, equipping viewers with the necessary tools to analyze and interpret data effectively.</div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
