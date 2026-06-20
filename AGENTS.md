@@ -15,8 +15,8 @@ Keep edits inside the benchmark boundary:
 - Supabase-backed benchmark state
 
 Do not add KGAI product frontend/backend code here. Product web code belongs in
-`frontend-main` or `frontend-admin`; product APIs belong in `backend-main` or
-`backend-admin`; AI runtime infrastructure belongs in `ai-foundry`.
+`frontend-main` or `admin/apps/frontend`; product APIs belong in `backend-main`
+or `admin/apps/backend`; AI runtime infrastructure belongs in `ai-foundry`.
 
 ## Repo Family Rules
 
