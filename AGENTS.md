@@ -21,7 +21,7 @@ or `admin/apps/backend`; AI runtime infrastructure belongs in `ai-foundry`.
 ## Repo Family Rules
 
 - `AGENTS.md` is the canonical agent guidance file for this repo.
-- `CLAUDE.md` is only a shim to this file; do not duplicate rules there.
+- There is no `CLAUDE.md`: Claude Code reads this file directly. Do not add one; keep every rule here.
 - Keep changes inside benchmark UI/data boundaries unless the task explicitly
   requires a coordinated sibling-repo change.
 - Treat `KGAI` as frozen legacy reference, not an active product source.
